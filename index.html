@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
 <title>HaqDar — Project Brief</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Noto+Nastaliq+Urdu:wght@400;700&display=swap');
@@ -237,18 +237,20 @@
 
   .fraud-steps li {
     counter-increment: fraud;
-    display: flex;
-    align-items: flex-start;
-    gap: 16px;
-    padding: 14px 0;
+    position: relative;
+    padding: 14px 0 14px 44px;
     border-bottom: 1px solid rgba(255,255,255,0.04);
     font-size: 14.5px;
     color: var(--text-secondary);
+    line-height: 1.65;
+    display: block;
   }
 
   .fraud-steps li::before {
     content: counter(fraud);
-    flex-shrink: 0;
+    position: absolute;
+    left: 0;
+    top: 13px;
     width: 28px;
     height: 28px;
     border-radius: 50%;
@@ -259,6 +261,175 @@
     justify-content: center;
     font-size: 13px;
     font-weight: 700;
+  }
+
+  
+  /* ========== MOBILE ARCH FLOW ========== */
+  .mobile-arch-flow {
+    display: none;
+    flex-direction: column;
+    gap: 8px;
+    margin: 20px 0;
+  }
+
+  .m-node {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    text-align: center;
+    position: relative;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+  }
+
+  .m-node.supervisor {
+    border-color: rgba(212, 168, 83, 0.5);
+    background: linear-gradient(180deg, rgba(212, 168, 83, 0.12) 0%, var(--bg-card) 100%);
+  }
+
+  .m-node.math {
+    border-color: rgba(91, 156, 245, 0.5);
+    background: linear-gradient(180deg, rgba(91, 156, 245, 0.12) 0%, var(--bg-card) 100%);
+  }
+
+  .m-node.qa {
+    border-color: rgba(78, 207, 125, 0.5);
+    background: linear-gradient(180deg, rgba(78, 207, 125, 0.12) 0%, var(--bg-card) 100%);
+  }
+
+  .m-node.final {
+    border-color: rgba(212, 168, 83, 0.35);
+    background: linear-gradient(180deg, rgba(212, 168, 83, 0.08) 0%, var(--bg-card) 100%);
+  }
+
+  .m-badge {
+    display: inline-block;
+    font-size: 9.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--accent);
+    background: var(--accent-glow);
+    border: 1px solid rgba(212, 168, 83, 0.3);
+    padding: 2px 8px;
+    border-radius: 100px;
+    margin-bottom: 5px;
+  }
+
+  .m-node.math .m-badge {
+    color: var(--info);
+    background: rgba(91, 156, 245, 0.15);
+    border-color: rgba(91, 156, 245, 0.3);
+  }
+
+  .m-node.qa .m-badge {
+    color: var(--success);
+    background: rgba(78, 207, 125, 0.15);
+    border-color: rgba(78, 207, 125, 0.3);
+  }
+
+  .m-node-title {
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--text-primary);
+    margin-bottom: 2px;
+  }
+
+  .m-node-desc {
+    font-size: 11.5px;
+    color: var(--text-muted);
+  }
+
+  .m-connector {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 2px 0;
+  }
+
+  .m-connector .line {
+    flex: 1;
+    height: 1px;
+    background: rgba(255,255,255,0.08);
+  }
+
+  .m-connector-pill {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--accent);
+    background: rgba(212, 168, 83, 0.08);
+    border: 1px solid rgba(212, 168, 83, 0.25);
+    padding: 3px 10px;
+    border-radius: 100px;
+  }
+
+  .m-parallel-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+
+  .m-parallel-card {
+    background: var(--bg-card);
+    border: 1px solid rgba(91, 156, 245, 0.25);
+    border-radius: 10px;
+    padding: 10px 4px;
+    text-align: center;
+  }
+
+  .m-p-icon { font-size: 18px; display: block; margin-bottom: 2px; }
+  .m-p-title { font-size: 11px; font-weight: 700; color: var(--text-primary); display: block; }
+  .m-p-tag { font-size: 9px; color: var(--info); display: block; }
+
+  .m-split-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .m-split-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 8px;
+    text-align: center;
+  }
+
+  .m-split-card.danger {
+    border-color: rgba(231, 76, 94, 0.35);
+    background: linear-gradient(180deg, rgba(231, 76, 94, 0.08) 0%, var(--bg-card) 100%);
+  }
+
+  .m-split-card.info {
+    border-color: rgba(91, 156, 245, 0.35);
+    background: linear-gradient(180deg, rgba(91, 156, 245, 0.08) 0%, var(--bg-card) 100%);
+  }
+
+  .m-split-title { font-size: 12.5px; font-weight: 700; color: var(--text-primary); margin-bottom: 2px; }
+  .m-split-desc { font-size: 10.5px; color: var(--text-muted); }
+
+  .arch-collapsible {
+    margin: 20px 0;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--bg-card);
+    overflow: hidden;
+  }
+
+  .arch-summary {
+    padding: 12px 16px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent);
+    background: var(--bg-card-alt);
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
   }
 
   /* ========== AGENT CARDS ========== */
@@ -618,6 +789,423 @@
     .cover { min-height: 100vh; }
     .page-break { page-break-before: always; }
   }
+
+  /* ========== MOBILE RESPONSIVE ========== */
+  @media (max-width: 768px) {
+    /* Cover */
+    .cover {
+      padding: 40px 24px;
+      min-height: 100svh;
+    }
+
+    .cover-badge {
+      font-size: 10px;
+      padding: 6px 16px;
+      letter-spacing: 1.5px;
+      margin-bottom: 28px;
+    }
+
+    .cover-urdu {
+      font-size: 52px;
+    }
+
+    .cover-title {
+      font-size: 34px;
+    }
+
+    .cover-subtitle {
+      font-size: 15px;
+      margin-bottom: 36px;
+    }
+
+    .cover-meta {
+      flex-direction: column;
+      gap: 10px;
+      font-size: 12px;
+    }
+
+    .cover-line {
+      margin: 20px auto;
+    }
+
+    /* Sections */
+    .section {
+      padding: 32px 20px;
+    }
+
+    .section-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 24px;
+    }
+
+    .section-title {
+      font-size: 22px;
+    }
+
+    h3 {
+      font-size: 16px;
+      margin: 20px 0 10px 0;
+    }
+
+    p {
+      font-size: 13.5px;
+    }
+
+    /* Stat Cards */
+    .stat-row {
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .stat-card {
+      min-width: unset;
+      padding: 16px;
+    }
+
+    .stat-value {
+      font-size: 28px;
+    }
+
+    /* Fraud Steps */
+    .fraud-steps li {
+      font-size: 13.5px;
+      padding: 12px 0 12px 42px;
+    }
+
+    /* Agent Grid */
+    .agent-grid {
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
+    .agent-card {
+      padding: 16px;
+    }
+
+    .agent-name {
+      font-size: 14px;
+    }
+
+    .agent-desc {
+      font-size: 12.5px;
+    }
+
+    /* Architecture Box */
+    .arch-box {
+      padding: 16px;
+      font-size: 9.5px;
+      line-height: 1.6;
+      border-radius: 12px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* Workflow Table */
+    .workflow-table {
+      font-size: 12px;
+      display: block;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .workflow-table th,
+    .workflow-table td {
+      padding: 10px 12px;
+      white-space: nowrap;
+    }
+
+    .workflow-table td:last-child {
+      white-space: normal;
+      min-width: 160px;
+    }
+
+    /* Tech Grid */
+    .tech-grid {
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .tech-item {
+      padding: 12px;
+    }
+
+    .tech-value {
+      font-size: 13px;
+    }
+
+    .tech-label {
+      font-size: 9px;
+    }
+
+    /* Demo Timeline */
+    .demo-timeline::before {
+      left: 13px;
+    }
+
+    .demo-step {
+      gap: 14px;
+      padding: 12px 0;
+    }
+
+    .demo-dot {
+      width: 26px;
+      height: 26px;
+      font-size: 11px;
+    }
+
+    .demo-content h4 {
+      font-size: 13px;
+    }
+
+    .demo-content p {
+      font-size: 12.5px;
+    }
+
+    .demo-time {
+      font-size: 10px;
+    }
+
+    /* Compare Table */
+    .compare-table {
+      font-size: 12px;
+      display: block;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .compare-table th,
+    .compare-table td {
+      padding: 8px 12px;
+      white-space: nowrap;
+    }
+
+    .compare-table td:nth-child(2),
+    .compare-table td:nth-child(3) {
+      white-space: normal;
+      min-width: 130px;
+    }
+
+    /* Callouts */
+    .callout {
+      padding: 16px 18px;
+      font-size: 13px;
+      border-radius: 0 10px 10px 0;
+    }
+
+    /* Formula Box */
+    .formula-box {
+      padding: 16px;
+      font-size: 12px;
+      line-height: 1.8;
+      overflow-x: auto;
+    }
+
+    /* Hero Moment */
+    .hero-moment {
+      padding: 16px;
+      font-size: 11.5px;
+      line-height: 1.8;
+    }
+
+    /* Footer */
+    .page-footer {
+      padding: 28px 20px;
+    }
+
+    .page-footer .tagline {
+      font-size: 14px;
+    }
+  }
+
+  /* Extra small phones */
+  @media (max-width: 380px) {
+    .cover-urdu {
+      font-size: 42px;
+    }
+
+    .cover-title {
+      font-size: 28px;
+    }
+
+    .section {
+      padding: 24px 16px;
+    }
+
+    .section-title {
+      font-size: 20px;
+    }
+
+    .tech-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .arch-box {
+      font-size: 8px;
+      padding: 12px;
+    }
+
+    .stat-value {
+      font-size: 24px;
+    }
+  }
+
+  /* ========== MOBILE RESPONSIVE OVERRIDES ========== */
+  @media (max-width: 768px) {
+    .mobile-arch-flow {
+      display: flex !important;
+    }
+
+    .arch-collapsible {
+      display: block;
+    }
+
+    .arch-collapsible .arch-box {
+      border-radius: 0;
+      border: none;
+      margin: 0;
+      font-size: 8px;
+      line-height: 1.5;
+      padding: 12px;
+      overflow-x: auto;
+    }
+
+    /* Transform Workflow Table to sleek cards on mobile */
+    .workflow-table, .workflow-table tbody, .workflow-table tr, .workflow-table td {
+      display: block !important;
+      width: 100% !important;
+      box-sizing: border-box !important;
+    }
+
+    .workflow-table thead, .workflow-table th {
+      display: none !important;
+    }
+
+    .workflow-table tr {
+      background: var(--bg-card) !important;
+      border: 1px solid var(--border) !important;
+      border-radius: 12px !important;
+      padding: 12px 14px !important;
+      margin-bottom: 10px !important;
+    }
+
+    .workflow-table td {
+      padding: 2px 0 !important;
+      border: none !important;
+      white-space: normal !important;
+      background: transparent !important;
+    }
+
+    .workflow-table td:nth-child(1) {
+      display: inline-block !important;
+      width: auto !important;
+      margin-right: 6px !important;
+    }
+
+    .workflow-table td:nth-child(2) {
+      display: inline !important;
+      font-size: 13.5px !important;
+      color: var(--accent) !important;
+      font-weight: 700 !important;
+    }
+
+    .workflow-table td:nth-child(3) {
+      display: block !important;
+      margin-top: 6px !important;
+      font-size: 12.5px !important;
+      color: var(--text-secondary) !important;
+      padding-left: 28px !important;
+      line-height: 1.5 !important;
+    }
+
+    /* Transform Compare Table to sleek cards on mobile */
+    .compare-table, .compare-table tbody, .compare-table tr, .compare-table td {
+      display: block !important;
+      width: 100% !important;
+      box-sizing: border-box !important;
+    }
+
+    .compare-table thead, .compare-table th {
+      display: none !important;
+    }
+
+    .compare-table tr {
+      background: var(--bg-card) !important;
+      border: 1px solid var(--border) !important;
+      border-radius: 12px !important;
+      padding: 14px !important;
+      margin-bottom: 12px !important;
+    }
+
+    .compare-table td {
+      padding: 3px 0 !important;
+      border: none !important;
+      white-space: normal !important;
+      min-width: unset !important;
+      background: transparent !important;
+    }
+
+    .compare-table td:first-child {
+      font-size: 11.5px !important;
+      font-weight: 800 !important;
+      color: var(--accent) !important;
+      text-transform: uppercase !important;
+      letter-spacing: 1px !important;
+      border-bottom: 1px solid rgba(255,255,255,0.06) !important;
+      padding-bottom: 6px !important;
+      margin-bottom: 8px !important;
+    }
+
+    .compare-table td:nth-child(2) {
+      font-size: 13px !important;
+      color: var(--success) !important;
+      margin-bottom: 4px !important;
+      display: flex !important;
+      align-items: flex-start !important;
+      gap: 6px !important;
+    }
+
+    .compare-table td:nth-child(2)::before {
+      content: "✓";
+      font-weight: 900;
+      color: var(--success);
+      flex-shrink: 0;
+    }
+
+    .compare-table td:nth-child(3) {
+      font-size: 12px !important;
+      color: var(--text-muted) !important;
+      display: flex !important;
+      align-items: flex-start !important;
+      gap: 6px !important;
+    }
+
+    .compare-table td:nth-child(3)::before {
+      content: "✗";
+      font-weight: 900;
+      color: var(--danger);
+      flex-shrink: 0;
+    }
+
+    /* Cover Meta pills */
+    .cover-meta {
+      display: flex !important;
+      flex-direction: row !important;
+      flex-wrap: wrap !important;
+      justify-content: center !important;
+      gap: 8px !important;
+    }
+
+    .cover-meta span {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 100px;
+      padding: 6px 14px;
+      font-size: 11px;
+    }
+  }
+
 </style>
 </head>
 <body>
@@ -801,7 +1389,100 @@
     <h2 class="section-title">Multi-Agent Architecture</h2>
   </div>
 
-  <div class="arch-box"><span class="node-active">                 ┌──────────────────────────┐</span>
+    <!-- Mobile-Optimized Architecture Flow -->
+  <div class="mobile-arch-flow">
+    <div class="m-node supervisor">
+      <span class="m-badge">Supervisor + Router</span>
+      <div class="m-node-title">🎯 Case Orchestrator</div>
+      <div class="m-node-desc">Central Hub & Triage Management</div>
+    </div>
+
+    <div class="m-connector">
+      <div class="line"></div>
+      <span class="m-connector-pill">⚡ Fan-Out (Parallel Execution)</span>
+      <div class="line"></div>
+    </div>
+
+    <div class="m-parallel-row">
+      <div class="m-parallel-card">
+        <span class="m-p-icon">📋</span>
+        <span class="m-p-title">Intake</span>
+        <span class="m-p-tag">Sequential</span>
+      </div>
+      <div class="m-parallel-card">
+        <span class="m-p-icon">👨‍👩‍👧‍👦</span>
+        <span class="m-p-title">Family Tree</span>
+        <span class="m-p-tag">ReAct / Tools</span>
+      </div>
+      <div class="m-parallel-card">
+        <span class="m-p-icon">📄</span>
+        <span class="m-p-title">Documents</span>
+        <span class="m-p-tag">Parallel</span>
+      </div>
+    </div>
+
+    <div class="m-connector">
+      <div class="line"></div>
+      <span class="m-connector-pill">⚖️ Sequential Dependency</span>
+      <div class="line"></div>
+    </div>
+
+    <div class="m-node math">
+      <span class="m-badge">Deterministic Engine</span>
+      <div class="m-node-title">⚖️ Sharia Calculator</div>
+      <div class="m-node-desc">Faraizi Mathematical Precision (Quran 4:11)</div>
+    </div>
+
+    <div class="m-connector">
+      <div class="line"></div>
+      <span class="m-connector-pill">🔍 Parallel Investigation</span>
+      <div class="line"></div>
+    </div>
+
+    <div class="m-split-row">
+      <div class="m-split-card danger">
+        <span style="font-size:18px; display:block; margin-bottom:2px">🔍</span>
+        <div class="m-split-title">Fraud Detection</div>
+        <div class="m-split-desc">Adversarial Debate</div>
+      </div>
+      <div class="m-split-card info">
+        <span style="font-size:18px; display:block; margin-bottom:2px">📜</span>
+        <div class="m-split-title">Legal Strategy</div>
+        <div class="m-split-desc">Planning + RAG</div>
+      </div>
+    </div>
+
+    <div class="m-connector">
+      <div class="line"></div>
+      <span class="m-connector-pill">🔄 Self-Correction Loop</span>
+      <div class="line"></div>
+    </div>
+
+    <div class="m-node qa">
+      <span class="m-badge">Reflection Gate</span>
+      <div class="m-node-title">🛡️ QA Reviewer</div>
+      <div class="m-node-desc">Error Trapping & Automated Recalculation</div>
+    </div>
+
+    <div class="m-connector">
+      <div class="line"></div>
+      <span class="m-connector-pill">📢 Final Client Handoff</span>
+      <div class="line"></div>
+    </div>
+
+    <div class="m-node final">
+      <span class="m-badge">Actionable Output</span>
+      <div class="m-node-title">🗣️ Urdu Output Agent</div>
+      <div class="m-node-desc">Legal Notice & Provincial Filing Roadmap</div>
+    </div>
+  </div>
+
+  <details class="arch-collapsible">
+    <summary class="arch-summary">
+      <span>🖥️ View Technical ASCII Flowchart</span>
+      <span>↕</span>
+    </summary>
+    <div class="arch-box"><span class="node-active">                 ┌──────────────────────────┐</span>
 <span class="node-active">                 │   🎯 CASE ORCHESTRATOR    │  ← Supervisor + Router</span>
 <span class="node-active">                 └───────────┬──────────────┘</span>
                             │
@@ -835,6 +1516,7 @@
             ┌──────────────────────────┐
             │ 🗣️ URDU OUTPUT AGENT     │  ← Final Output
             └──────────────────────────┘</div>
+  </details>
 
   <h3>11 Agentic Workflow Patterns Demonstrated</h3>
   <table class="workflow-table">
