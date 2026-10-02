@@ -14,6 +14,18 @@ export interface ChatMessage {
   timestamp: string;
 }
 
+export interface ExtractedFacts {
+  deceased_name?: string;
+  date_of_death?: string;
+  sons_count?: number;
+  daughters_count?: number;
+  mother_alive?: boolean;
+  widow_alive?: boolean;
+  property_area?: string;
+  location?: string;
+  dispute_type?: string;
+}
+
 export interface CaseState {
   sessionId: string | null;
   language: "en" | "roman_urdu";
@@ -26,6 +38,9 @@ export interface CaseState {
   legalRoadmap: any | null;
   finalReport: any | null;
   isInvestigating: boolean;
+  extractedFacts: ExtractedFacts;
+  suggestedOptions: string[];
+  isReadyToLaunch: boolean;
 
   setSessionId: (id: string) => void;
   setLanguage: (lang: "en" | "roman_urdu") => void;
@@ -38,6 +53,9 @@ export interface CaseState {
   setLegalRoadmap: (roadmap: any) => void;
   setFinalReport: (report: any) => void;
   setIsInvestigating: (inv: boolean) => void;
+  setExtractedFacts: (facts: ExtractedFacts) => void;
+  setSuggestedOptions: (opts: string[]) => void;
+  setIsReadyToLaunch: (ready: boolean) => void;
   resetCase: () => void;
 }
 
@@ -62,6 +80,9 @@ export const useCaseStore = create<CaseState>((set) => ({
   legalRoadmap: null,
   finalReport: null,
   isInvestigating: false,
+  extractedFacts: {},
+  suggestedOptions: [],
+  isReadyToLaunch: false,
 
   setSessionId: (id) => set({ sessionId: id }),
   setLanguage: (lang) => set({ language: lang }),
@@ -97,6 +118,10 @@ export const useCaseStore = create<CaseState>((set) => ({
   setLegalRoadmap: (roadmap) => set({ legalRoadmap: roadmap }),
   setFinalReport: (report) => set({ finalReport: report }),
   setIsInvestigating: (inv) => set({ isInvestigating: inv }),
+  setExtractedFacts: (facts) =>
+    set((state) => ({ extractedFacts: { ...state.extractedFacts, ...facts } })),
+  setSuggestedOptions: (opts) => set({ suggestedOptions: opts }),
+  setIsReadyToLaunch: (ready) => set({ isReadyToLaunch: ready }),
   resetCase: () =>
     set({
       sessionId: null,
@@ -108,5 +133,8 @@ export const useCaseStore = create<CaseState>((set) => ({
       legalRoadmap: null,
       finalReport: null,
       isInvestigating: false,
+      extractedFacts: {},
+      suggestedOptions: [],
+      isReadyToLaunch: false,
     }),
 }));

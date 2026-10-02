@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { useCaseStore } from "@/store/caseStore";
-import { Send, Play, Sparkles, User, Bot, Loader2 } from "lucide-react";
+import { Send, Play, Sparkles, User, Bot, Loader2, CheckCircle2, UserCheck, MapPin, Scale } from "lucide-react";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
 
@@ -12,6 +12,9 @@ export function CaseChat() {
     language,
     messages,
     isInvestigating,
+    extractedFacts,
+    suggestedOptions,
+    isReadyToLaunch,
     setSessionId,
     setLanguage,
     addMessage,
@@ -22,6 +25,9 @@ export function CaseChat() {
     setLegalRoadmap,
     addFraudAlert,
     updateAgentStatus,
+    setExtractedFacts,
+    setSuggestedOptions,
+    setIsReadyToLaunch,
   } = useCaseStore();
 
   const [inputMessage, setInputMessage] = useState("");
@@ -60,6 +66,9 @@ export function CaseChat() {
         role: "assistant",
         content: data.greeting,
       });
+      if (data.options) {
+        setSuggestedOptions(data.options);
+      }
       updateAgentStatus("intake_agent", "thinking", "Intake Officer interviewing claimant...");
     } catch (err) {
       console.error("Failed to initialize case", err);
@@ -96,16 +105,15 @@ export function CaseChat() {
     }, 50);
   };
 
-  const handleSendMessage = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (!inputMessage.trim()) return;
+  const handleSendMessage = async (textToSend?: string) => {
+    const text = (textToSend || inputMessage).trim();
+    if (!text) return;
 
-    const userText = inputMessage.trim();
     setInputMessage("");
     if (textareaRef.current) {
       textareaRef.current.style.height = "42px";
     }
-    addMessage({ role: "user", content: userText });
+    addMessage({ role: "user", content: text });
 
     let activeSessionId = sessionId;
     if (!activeSessionId) {
@@ -114,26 +122,44 @@ export function CaseChat() {
     }
 
     setIsTyping(true);
-    updateAgentStatus("intake_agent", "thinking", "Analyzing grievance and structuring follow-up questions...");
+    updateAgentStatus("intake_agent", "thinking", "Analyzing response and updating case memory...");
 
     try {
       const res = await fetch(`${API_BASE}/case/message`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ session_id: activeSessionId, message: userText }),
+        body: JSON.stringify({ session_id: activeSessionId, message: text }),
       });
       if (res.ok) {
         const data = await res.json();
         if (data && data.reply) {
           addMessage({ role: "assistant", content: data.reply });
-          updateAgentStatus("intake_agent", "completed", "Facts gathered. Ready for investigation.");
         }
+        if (data.extracted_facts) {
+          setExtractedFacts(data.extracted_facts);
+        }
+        if (data.options) {
+          setSuggestedOptions(data.options);
+        }
+        if (data.ready_to_launch !== undefined) {
+          setIsReadyToLaunch(data.ready_to_launch);
+        }
+        updateAgentStatus("intake_agent", "completed", "Facts updated in memory.");
       }
     } catch (err) {
       console.warn("Message response fallback", err);
-      updateAgentStatus("intake_agent", "completed", "Fact discovery ready.");
+      updateAgentStatus("intake_agent", "completed", "Fact discovery active.");
     } finally {
       setIsTyping(false);
+    }
+  };
+
+  // Option Chip Click Handler
+  const handleOptionClick = (opt: string) => {
+    if (opt.startsWith("🚀") || opt.includes("Investigation")) {
+      handleTriggerInvestigation();
+    } else {
+      handleSendMessage(opt);
     }
   };
 
@@ -145,34 +171,54 @@ export function CaseChat() {
     }
   };
 
-  // Launch Full 8-Agent Investigation with Polling Fallback
+  // Launch Full 8-Agent Investigation with Dynamic Case Facts
   const handleTriggerInvestigation = async () => {
     if (!sessionId) return;
     setIsInvestigating(true);
 
-    const structuredIntake = {
+    // Build heirs list from extracted facts or defaults
+    const sonsCount = extractedFacts.sons_count ?? 2;
+    const daughtersCount = extractedFacts.daughters_count ?? 3;
+    const motherAlive = extractedFacts.mother_alive ?? false;
+    const deceasedName = extractedFacts.deceased_name || "Ilyan Khan";
+    const propertyArea = extractedFacts.property_area || "17 Acres Farm Land";
+    const propertyLocation = extractedFacts.location || "Warah, Kamber Shahdadkot, Sindh";
+    const disputeReason = extractedFacts.dispute_type || "Brothers unlawfully dispossessing claimant sisters of inheritance";
+
+    const familyMembers = [];
+    if (motherAlive) {
+      familyMembers.push({ name: "Mother / Widow", relationship_to_deceased: "wife", is_alive: true, gender: "female", is_claimant: false });
+    }
+    for (let s = 0; s < sonsCount; s++) {
+      familyMembers.push({ name: `Brother #${s + 1}`, relationship_to_deceased: "son", is_alive: true, gender: "male", is_claimant: false });
+    }
+    for (let d = 0; d < daughtersCount; d++) {
+      familyMembers.push({
+        name: d === 0 ? "Claimant (Daughter)" : `Sister #${d + 1}`,
+        relationship_to_deceased: "daughter",
+        is_alive: true,
+        gender: "female",
+        is_claimant: d === 0,
+      });
+    }
+
+    const dynamicIntake = {
       case_id: sessionId,
-      claimant_name: "Fatima Bibi",
+      claimant_name: "Claimant Daughter",
       claimant_language: language,
-      deceased_name: "Haji Ghulam Rasool",
+      deceased_name: deceasedName,
       date_of_death: "2023-01-14",
       sect: "Hanafi",
-      family_members: [
-        { name: "Kulsoom Bibi", relationship_to_deceased: "wife", is_alive: true, gender: "female", is_claimant: false },
-        { name: "Jannat Bibi", relationship_to_deceased: "mother", is_alive: true, gender: "female", is_claimant: false },
-        { name: "Tariq Rasool", relationship_to_deceased: "son", is_alive: true, gender: "male", is_claimant: false },
-        { name: "Rashid Rasool", relationship_to_deceased: "son", is_alive: true, gender: "male", is_claimant: false },
-        { name: "Fatima Bibi", relationship_to_deceased: "daughter", is_alive: true, gender: "female", is_claimant: true },
-      ],
+      family_members: familyMembers,
       properties: [
         {
-          location: "Chak 12-JB, Tehsil Sadar, Gujranwala",
-          area_description: "120 Kanals agricultural land under Khasra No. 412/1",
-          estimated_value_pkr: 48000000.0,
-          claimed_documents: ["Unregistered Oral Hiba claimed by brothers", "Mutation No. 412"],
+          location: propertyLocation,
+          area_description: propertyArea,
+          estimated_value_pkr: 35000000.0,
+          claimed_documents: ["Deed / Mutation Record", disputeReason],
         },
       ],
-      alleged_fraud_description: "Brothers forged oral Hiba deed 2 days prior to death during Marz-ul-Maut and excluded daughter Fatima from revenue mutation.",
+      alleged_fraud_description: disputeReason,
     };
 
     try {
@@ -181,7 +227,7 @@ export function CaseChat() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           session_id: sessionId,
-          intake_data: structuredIntake,
+          intake_data: dynamicIntake,
         }),
       });
 
@@ -226,6 +272,8 @@ export function CaseChat() {
     }
   };
 
+  const hasAnyFacts = Object.keys(extractedFacts).length > 0;
+
   return (
     <div className="flex flex-col h-full bg-white rounded-2xl border border-border shadow-xs overflow-hidden">
       {/* Header with language selector */}
@@ -236,7 +284,7 @@ export function CaseChat() {
           </div>
           <div>
             <h2 className="font-bold text-sm text-primary-900 leading-tight">Case Discovery & Intake</h2>
-            <p className="text-[11px] text-slate-500">Conversational Fact Finding</p>
+            <p className="text-[11px] text-slate-500">Autonomous Conversational Discovery</p>
           </div>
         </div>
 
@@ -260,11 +308,44 @@ export function CaseChat() {
         </div>
       </div>
 
+      {/* Live Discovered Case Facts Badge Bar */}
+      {hasAnyFacts && (
+        <div className="px-4 py-2 bg-primary-50/80 border-b border-primary-100 flex flex-wrap items-center gap-2 text-[11px]">
+          <span className="font-bold text-primary-900 flex items-center gap-1">
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+            <span>Case Facts Locked:</span>
+          </span>
+          {extractedFacts.deceased_name && (
+            <span className="bg-white px-2 py-0.5 rounded-md border border-primary-200 text-primary-800 font-semibold flex items-center gap-1">
+              <UserCheck className="w-3 h-3 text-primary-600" />
+              {extractedFacts.deceased_name}
+            </span>
+          )}
+          {(extractedFacts.sons_count !== undefined || extractedFacts.daughters_count !== undefined) && (
+            <span className="bg-white px-2 py-0.5 rounded-md border border-primary-200 text-primary-800 font-semibold flex items-center gap-1">
+              👨‍👩‍👧‍👦 {extractedFacts.sons_count || 0} Sons, {extractedFacts.daughters_count || 0} Daughters
+            </span>
+          )}
+          {extractedFacts.property_area && (
+            <span className="bg-white px-2 py-0.5 rounded-md border border-primary-200 text-primary-800 font-semibold flex items-center gap-1">
+              <Scale className="w-3 h-3 text-accent-600" />
+              {extractedFacts.property_area}
+            </span>
+          )}
+          {extractedFacts.location && (
+            <span className="bg-white px-2 py-0.5 rounded-md border border-primary-200 text-primary-800 font-semibold flex items-center gap-1">
+              <MapPin className="w-3 h-3 text-red-500" />
+              {extractedFacts.location}
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Quick Benchmark Preset */}
       <div className="px-4 py-2 bg-accent-50/50 border-b border-accent-100 flex items-center justify-between text-xs">
         <div className="flex items-center gap-1.5 text-accent-700 font-semibold">
           <Sparkles className="w-3.5 h-3.5 text-accent-600" />
-          <span>Hackathon Demo Preset:</span>
+          <span>Quick Demo Scenario:</span>
         </div>
         <button
           onClick={handleLoadFatimaCase}
@@ -275,15 +356,15 @@ export function CaseChat() {
       </div>
 
       {/* Message Stream */}
-      <div className="flex-1 p-4 overflow-y-auto space-y-3 min-h-[320px]">
+      <div className="flex-1 p-4 overflow-y-auto space-y-3 min-h-[300px]">
         {messages.length === 0 && (
           <div className="text-center py-10">
             <div className="w-12 h-12 rounded-2xl bg-primary-50 text-primary-800 flex items-center justify-center mx-auto mb-3 font-bold text-lg">
               ⚖️
             </div>
-            <h3 className="font-bold text-slate-800 text-sm mb-1">Start Your Case Investigation</h3>
+            <h3 className="font-bold text-slate-800 text-sm mb-1">Start Your Case Discovery</h3>
             <p className="text-xs text-slate-500 max-w-sm mx-auto mb-4">
-              Type your grievance or load the demo preset to converse with the Intake Agent.
+              Type your grievance in English or Roman Urdu to start the intelligent intake interview.
             </p>
             <button
               onClick={() => handleStartCase(language)}
@@ -331,15 +412,39 @@ export function CaseChat() {
         <div ref={messagesEndRef} />
       </div>
 
+      {/* Suggested Quick-Reply Option Chips */}
+      {suggestedOptions && suggestedOptions.length > 0 && !isInvestigating && (
+        <div className="px-3 pt-2 pb-1 bg-slate-50/70 border-t border-slate-200 flex flex-wrap gap-1.5 items-center">
+          <span className="text-[10px] uppercase font-bold text-slate-400 mr-1">Quick Select:</span>
+          {suggestedOptions.map((opt, i) => (
+            <button
+              key={i}
+              onClick={() => handleOptionClick(opt)}
+              className={`px-2.5 py-1 text-[11px] font-semibold rounded-lg border transition-all ${
+                opt.startsWith("🚀")
+                  ? "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-700 shadow-xs animate-bounce"
+                  : "bg-white hover:bg-slate-100 text-slate-700 border-slate-300"
+              }`}
+            >
+              {opt}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Action Bar & Multiline Input */}
       <div className="p-3 border-t border-border bg-white space-y-2">
         {sessionId && !isInvestigating && (
           <button
             onClick={handleTriggerInvestigation}
-            className="w-full py-2.5 bg-success-600 hover:bg-success-700 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-2 shadow-xs transition-all"
+            className={`w-full py-2.5 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-2 shadow-xs transition-all ${
+              isReadyToLaunch
+                ? "bg-emerald-600 hover:bg-emerald-700 ring-2 ring-emerald-400/40"
+                : "bg-success-600 hover:bg-success-700"
+            }`}
           >
             <Play className="w-4 h-4 fill-white" />
-            Launch 8-Agent Autonomous Investigation
+            {isReadyToLaunch ? "All Facts Complete — Launch 8-Agent Investigation" : "Launch 8-Agent Autonomous Investigation"}
           </button>
         )}
 
@@ -350,7 +455,7 @@ export function CaseChat() {
           </div>
         )}
 
-        <form onSubmit={handleSendMessage} className="flex items-end gap-2">
+        <form onSubmit={(e) => { e.preventDefault(); handleSendMessage(); }} className="flex items-end gap-2">
           <textarea
             ref={textareaRef}
             rows={1}
