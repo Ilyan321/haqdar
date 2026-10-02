@@ -34,6 +34,7 @@ export function ShareBreakdownTable() {
               <th className="py-2.5 px-3">Relationship</th>
               <th className="py-2.5 px-3">Exact Fraction</th>
               <th className="py-2.5 px-3">Percentage</th>
+              <th className="py-2.5 px-3">Allocated Portion</th>
               <th className="py-2.5 px-3">Quranic Authority</th>
               <th className="py-2.5 px-3">Jurisprudential Rule</th>
             </tr>
@@ -45,6 +46,7 @@ export function ShareBreakdownTable() {
                 <td className="py-2.5 px-3 capitalize text-slate-600 font-medium">{h.relationship}</td>
                 <td className="py-2.5 px-3 font-mono font-bold text-primary-800">{h.exact_fraction_str}</td>
                 <td className="py-2.5 px-3 font-mono font-bold text-slate-700">{h.share_percentage}%</td>
+                <td className="py-2.5 px-3 font-mono font-bold text-emerald-700 bg-emerald-50/50">{h.allocated_area || `${h.share_percentage}%`}</td>
                 <td className="py-2.5 px-3">
                   <span className="inline-flex items-center gap-1 font-semibold text-accent-700 bg-accent-50 px-2 py-0.5 rounded border border-accent-200/60">
                     <BookOpen className="w-3 h-3" />

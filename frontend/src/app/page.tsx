@@ -23,13 +23,21 @@ import {
 } from "lucide-react";
 
 export default function Home() {
-  const { sessionId, pipelineStage, resetCase, finalReport, shariaShares, fraudAlerts } = useCaseStore();
+  const { sessionId, pipelineStage, resetCase, finalReport, shariaShares, fraudAlerts, extractedFacts } = useCaseStore();
   const { isConnected } = useAgentStream(sessionId);
   const [activeVizTab, setActiveVizTab] = useState<"pipeline" | "tree" | "docs" | "qa">("pipeline");
 
   const documentData = finalReport?.document_analysis;
   const qaVerdict = finalReport?.qa_verdict;
-  const claimantShare = shariaShares?.heir_allocations?.find((h: any) => h.relationship === "daughter" || h.is_claimant);
+  const claimantShare =
+    shariaShares?.heir_allocations?.find((h: any) => h.is_claimant) ||
+    shariaShares?.heir_allocations?.find((h: any) => h.relationship === "daughter") ||
+    shariaShares?.heir_allocations?.find((h: any) => h.gender === "female");
+
+  const estateDescription =
+    finalReport?.intake?.properties?.[0]?.area_description ||
+    extractedFacts.property_area ||
+    "Family Estate";
 
   return (
     <main className="min-h-screen bg-background flex flex-col">
@@ -87,7 +95,7 @@ export default function Home() {
               <div>
                 <div className="text-[10px] text-slate-300 uppercase font-semibold">Total Estate Asset</div>
                 <div className="font-bold text-sm text-white truncate max-w-[200px]">
-                  {finalReport?.intake?.properties?.[0]?.area_description || "Family Estate"}
+                  {estateDescription}
                 </div>
               </div>
             </div>

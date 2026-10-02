@@ -273,7 +273,7 @@ class CaseOrchestrationPipeline:
         for h in math_result.heir_shares:
             if base_qty is not None and base_unit:
                 alloc_val = base_qty * (h.individual_percentage / 100.0)
-                alloc_str = f"{alloc_val:.2f} {base_unit} ({h.individual_fraction_str})"
+                alloc_str = f"{alloc_val:.2f} {base_unit}"
             else:
                 alloc_str = f"{h.individual_percentage:.2f}% of {prop_area}"
 
