@@ -9,14 +9,16 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from app.services.notifier import notifier
 
 async def main():
-    print("Testing Slack Notifier...")
+    bot_token = notifier.bot_token
     webhook_url = notifier.webhook_url
-    if not webhook_url:
-        print("⚠️ No SLACK_WEBHOOK_URL or ALERT_WEBHOOK_URL set in environment or .env!")
-        print("Set SLACK_WEBHOOK_URL in your .env or export SLACK_WEBHOOK_URL='https://hooks.slack.com/services/...'")
+    if not bot_token and not webhook_url:
+        print("⚠️ Neither SLACK_BOT_TOKEN nor SLACK_WEBHOOK_URL is set in environment or .env!")
         return
 
-    print(f"📡 Dispatching mock case investigation alert to: {webhook_url[:35]}...")
+    if bot_token:
+        print(f"📡 Dispatching mock case investigation alert via Bot API (Channel: {notifier.channel_id})...")
+    else:
+        print(f"📡 Dispatching mock case investigation alert to Webhook: {webhook_url[:35]}...")
     mock_dossier = {
         "intake": {
             "deceased_name": "Chaudhry Muhammad Aslam",

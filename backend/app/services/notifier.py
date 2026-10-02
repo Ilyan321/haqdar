@@ -20,6 +20,21 @@ class SlackNotifier:
             or getattr(settings, "ALERT_WEBHOOK_URL", "")
         )
 
+    @property
+    def bot_token(self) -> str:
+        return (
+            os.getenv("SLACK_BOT_TOKEN")
+            or getattr(settings, "SLACK_BOT_TOKEN", "")
+        )
+
+    @property
+    def channel_id(self) -> str:
+        return (
+            os.getenv("SLACK_CHANNEL_ID")
+            or getattr(settings, "SLACK_CHANNEL_ID", "")
+            or "C0BGMV9SS1K"  # default to agy channel
+        )
+
     def build_slack_blocks(self, session_id: str, dossier: Dict[str, Any]) -> Dict[str, Any]:
         intake = dossier.get("intake", {})
         classification = dossier.get("classification", {})
@@ -54,7 +69,7 @@ class SlackNotifier:
             fraud_summary_list.append(f"• 🚨 *{alert.get('fraud_type', 'Violation')}*: {alert.get('deprivation_summary', '')}")
         fraud_formatted = "\n".join(fraud_summary_list) if fraud_summary_list else "Potential unlawful dispossession under PPC 498A"
 
-        case_url = f"https://haqdar.aenox.me"
+        case_url = "https://haqdar.aenox.me"
 
         blocks = [
             {
@@ -127,23 +142,46 @@ class SlackNotifier:
         }
 
     async def send_investigation_alert(self, session_id: str, dossier: Dict[str, Any]) -> bool:
-        url = self.webhook_url
-        if not url:
-            logger.info("SlackNotifier: No SLACK_WEBHOOK_URL configured. Skipping secret notification.")
-            return False
+        payload = self.build_slack_blocks(session_id, dossier)
 
-        try:
-            payload = self.build_slack_blocks(session_id, dossier)
-            response = await self.client.post(url, json=payload)
-            if response.status_code in [200, 204]:
-                logger.info("SlackNotifier: Case alert sent successfully to Slack for session %s", session_id)
-                return True
-            else:
-                logger.warning("SlackNotifier: Failed to post to Slack (%s): %s", response.status_code, response.text)
+        # 1. Prefer Bot Token API if configured
+        if self.bot_token:
+            try:
+                post_data = {
+                    "channel": self.channel_id,
+                    "text": payload["text"],
+                    "blocks": payload["blocks"]
+                }
+                headers = {
+                    "Authorization": f"Bearer {self.bot_token}",
+                    "Content-Type": "application/json; charset=utf-8"
+                }
+                response = await self.client.post("https://slack.com/api/chat.postMessage", json=post_data, headers=headers)
+                data = response.json()
+                if data.get("ok"):
+                    logger.info("SlackNotifier: Alert sent via Bot API for session %s", session_id)
+                    return True
+                else:
+                    logger.warning("SlackNotifier: Bot API error: %s", data.get("error"))
+            except Exception as e:
+                logger.error("SlackNotifier: Bot API exception: %s", str(e))
+
+        # 2. Fallback to Webhook URL
+        if self.webhook_url:
+            try:
+                response = await self.client.post(self.webhook_url, json=payload)
+                if response.status_code in [200, 204]:
+                    logger.info("SlackNotifier: Alert sent via Webhook for session %s", session_id)
+                    return True
+                else:
+                    logger.warning("SlackNotifier: Webhook post failed (%s): %s", response.status_code, response.text)
+                    return False
+            except Exception as e:
+                logger.error("SlackNotifier: Webhook exception: %s", str(e))
                 return False
-        except Exception as e:
-            logger.error("SlackNotifier: Exception while sending alert to Slack: %s", str(e))
-            return False
+
+        logger.info("SlackNotifier: Neither Bot Token nor Webhook URL configured.")
+        return False
 
     def trigger_async_alert(self, session_id: str, dossier: Dict[str, Any]) -> None:
         """Fire and forget without blocking the response."""

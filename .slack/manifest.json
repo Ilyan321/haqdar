@@ -1,0 +1,22 @@
+{
+  "display_information": {
+    "name": "HaqDar Notifier",
+    "description": "Legal intelligence investigation alerts"
+  },
+  "features": {
+    "bot_user": {
+      "display_name": "HaqDar",
+      "always_online": true
+    }
+  },
+  "oauth_config": {
+    "scopes": {
+      "bot": [
+        "chat:write",
+        "chat:write.public",
+        "incoming-webhook",
+        "channels:read"
+      ]
+    }
+  }
+}

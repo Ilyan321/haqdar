@@ -1,0 +1,5 @@
+{
+  "hooks": {
+    "get-manifest": "python3 -c \"import sys; print(open('/home/ilyan/og/.slack/manifest.json').read())\""
+  }
+}
