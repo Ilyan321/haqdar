@@ -26,13 +26,14 @@ export function CaseChat() {
 
   const [inputMessage, setInputMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll chat to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, isTyping]);
 
   // Adjust textarea height on change
   const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -105,18 +106,29 @@ export function CaseChat() {
     }
     addMessage({ role: "user", content: userText });
 
-    if (!sessionId) {
-      await handleStartCase(language);
+    let activeSessionId = sessionId;
+    if (!activeSessionId) {
+      activeSessionId = "case-" + Math.random().toString(36).substring(7);
+      setSessionId(activeSessionId);
     }
 
+    setIsTyping(true);
     try {
-      await fetch(`${API_BASE}/case/message`, {
+      const res = await fetch(`${API_BASE}/case/message`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ session_id: sessionId, message: userText }),
+        body: JSON.stringify({ session_id: activeSessionId, message: userText }),
       });
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.reply) {
+          addMessage({ role: "assistant", content: data.reply });
+        }
+      }
     } catch (err) {
-      console.warn("Message sent locally (backend offline or connecting)", err);
+      console.warn("Message response fallback", err);
+    } finally {
+      setIsTyping(false);
     }
   };
 
@@ -266,7 +278,7 @@ export function CaseChat() {
             </div>
             <h3 className="font-bold text-slate-800 text-sm mb-1">Start Your Case Investigation</h3>
             <p className="text-xs text-slate-500 max-w-sm mx-auto mb-4">
-              Enter grievance details or load the benchmark scenario to activate the 8-agent forensic workflow.
+              Type your grievance or load the demo preset to converse with the Intake Agent.
             </p>
             <button
               onClick={() => handleStartCase(language)}
@@ -303,6 +315,14 @@ export function CaseChat() {
             </div>
           </div>
         ))}
+
+        {isTyping && (
+          <div className="flex items-center gap-2 text-xs text-slate-500 p-2 bg-slate-50 rounded-xl max-w-[200px] border border-slate-200/60 animate-pulse">
+            <Bot className="w-3.5 h-3.5 text-primary-800" />
+            <span>Intake Officer is typing...</span>
+          </div>
+        )}
+
         <div ref={messagesEndRef} />
       </div>
 
@@ -334,8 +354,8 @@ export function CaseChat() {
             onKeyDown={handleKeyDown}
             placeholder={
               language === "en"
-                ? "Describe your case or family details (Shift+Enter for newline)..."
-                : "Apne case ya khandaan ke baray mein likhein (Shift+Enter for newline)..."
+                ? "Type any message or answer questions (Shift+Enter for newline)..."
+                : "Koi bhi baat ya sawal ka jawab likhein (Shift+Enter for newline)..."
             }
             className="flex-1 px-3.5 py-2.5 text-xs bg-slate-50 border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-800/20 text-slate-800 placeholder-slate-400 resize-none min-h-[42px] max-h-[160px] overflow-y-auto leading-relaxed"
           />

@@ -8,10 +8,12 @@ import {
   Node,
   Edge,
   Position,
-  MarkerType,
+  ReactFlowProvider,
+  useReactFlow,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useCaseStore } from "@/store/caseStore";
+import { Focus, Maximize2 } from "lucide-react";
 
 const AGENT_CONFIGS = [
   { id: "orchestrator", label: "🎯 Case Orchestrator", role: "Supervisor & Router", x: 250, y: 20 },
@@ -24,8 +26,13 @@ const AGENT_CONFIGS = [
   { id: "qa_reviewer", label: "🛡️ QA Reviewer", role: "Judicial Reflection Gate", x: 250, y: 490 },
 ];
 
-export function AgentPipelineFlow() {
+function PipelineFlowInner() {
   const { agentStatuses } = useCaseStore();
+  const { fitView } = useReactFlow();
+
+  const handleRecenter = () => {
+    fitView({ padding: 0.15, duration: 400 });
+  };
 
   const nodes: Node[] = useMemo(() => {
     return AGENT_CONFIGS.map((cfg) => {
@@ -34,12 +41,10 @@ export function AgentPipelineFlow() {
 
       let borderClass = "border-slate-300 bg-white text-slate-800";
       let badgeClass = "bg-slate-100 text-slate-600";
-      let pulse = false;
 
       if (status === "thinking" || status === "started") {
         borderClass = "border-info-600 bg-info-50 text-primary-900 shadow-md ring-2 ring-info-600/30";
         badgeClass = "bg-info-600 text-white animate-pulse";
-        pulse = true;
       } else if (status === "completed") {
         borderClass = "border-success-600 bg-success-50 text-slate-900 shadow-sm";
         badgeClass = "bg-success-600 text-white";
@@ -93,6 +98,17 @@ export function AgentPipelineFlow() {
         <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
         Live Multi-Agent Orchestration Topology
       </div>
+
+      {/* Prominent Recenter Button */}
+      <button
+        onClick={handleRecenter}
+        title="Recenter & Fit View"
+        className="absolute top-3 right-4 z-10 bg-white/95 hover:bg-slate-100 text-primary-900 px-3 py-1.5 rounded-lg border border-border shadow-xs text-xs font-bold flex items-center gap-1.5 transition-all active:scale-95"
+      >
+        <Focus className="w-3.5 h-3.5 text-accent-600" />
+        <span>Recenter View</span>
+      </button>
+
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -103,5 +119,13 @@ export function AgentPipelineFlow() {
         <Controls />
       </ReactFlow>
     </div>
+  );
+}
+
+export function AgentPipelineFlow() {
+  return (
+    <ReactFlowProvider>
+      <PipelineFlowInner />
+    </ReactFlowProvider>
   );
 }

@@ -8,13 +8,20 @@ import {
   Node,
   Edge,
   Position,
+  ReactFlowProvider,
+  useReactFlow,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useCaseStore } from "@/store/caseStore";
-import { AlertTriangle, CheckCircle, User } from "lucide-react";
+import { AlertTriangle, CheckCircle, User, Focus } from "lucide-react";
 
-export function FamilyTreeGraph() {
+function FamilyTreeGraphInner() {
   const { familyTree } = useCaseStore();
+  const { fitView } = useReactFlow();
+
+  const handleRecenter = () => {
+    fitView({ padding: 0.2, duration: 400 });
+  };
 
   const { nodes, edges } = useMemo(() => {
     if (!familyTree || !familyTree.nodes) {
@@ -113,10 +120,28 @@ export function FamilyTreeGraph() {
       <div className="absolute top-3 left-4 z-10 bg-white/90 backdrop-blur px-3 py-1.5 rounded-lg border border-border shadow-xs text-xs font-semibold text-primary-800">
         Reconstructed Shajra Nasab (Genealogical Tree)
       </div>
+
+      <button
+        onClick={handleRecenter}
+        title="Recenter & Fit View"
+        className="absolute top-3 right-4 z-10 bg-white/95 hover:bg-slate-100 text-primary-900 px-3 py-1.5 rounded-lg border border-border shadow-xs text-xs font-bold flex items-center gap-1.5 transition-all active:scale-95"
+      >
+        <Focus className="w-3.5 h-3.5 text-accent-600" />
+        <span>Recenter View</span>
+      </button>
+
       <ReactFlow nodes={nodes} edges={edges} fitView attributionPosition="bottom-right">
         <Background color="#cbd5e1" gap={16} size={1} />
         <Controls />
       </ReactFlow>
     </div>
+  );
+}
+
+export function FamilyTreeGraph() {
+  return (
+    <ReactFlowProvider>
+      <FamilyTreeGraphInner />
+    </ReactFlowProvider>
   );
 }
