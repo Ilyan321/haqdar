@@ -1,7 +1,7 @@
 import { MetadataRoute } from "next";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = "https://haqdar.ai";
+  const baseUrl = "https://haqdar.aenox.me";
   const lastModified = new Date();
 
   return [
