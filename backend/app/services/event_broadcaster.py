@@ -2,6 +2,7 @@ import asyncio
 import json
 from typing import Dict, AsyncGenerator, Any
 from pydantic import BaseModel
+from sse_starlette.sse import ServerSentEvent
 
 class AgentTelemetryEvent(BaseModel):
     case_id: str
@@ -27,20 +28,15 @@ class SSEEventBroadcaster:
 
     async def broadcast(self, session_id: str, event_type: str, payload: Dict[str, Any]) -> None:
         queue = self.get_or_create_queue(session_id)
-        formatted_message = {
-            "event": event_type,
-            "data": payload
-        }
-        await queue.put(formatted_message)
+        data_json = json.dumps(payload)
+        await queue.put(ServerSentEvent(event=event_type, data=data_json))
 
-    async def stream(self, session_id: str) -> AsyncGenerator[str, None]:
+    async def stream(self, session_id: str) -> AsyncGenerator[ServerSentEvent, None]:
         queue = self.get_or_create_queue(session_id)
         try:
             while True:
-                message = await queue.get()
-                event_name = message.get("event", "message")
-                data_json = json.dumps(message.get("data", {}))
-                yield f"event: {event_name}\ndata: {data_json}\n\n"
+                event_item = await queue.get()
+                yield event_item
                 queue.task_done()
         except asyncio.CancelledError:
             # Client disconnected

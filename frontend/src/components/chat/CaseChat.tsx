@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useCaseStore } from "@/store/caseStore";
-import { Send, Play, Sparkles, User, Bot, Loader2, FileText, CheckCircle } from "lucide-react";
+import { Send, Play, Sparkles, User, Bot, Loader2 } from "lucide-react";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
 
@@ -16,10 +16,32 @@ export function CaseChat() {
     setLanguage,
     addMessage,
     setIsInvestigating,
+    setFinalReport,
+    setShariaShares,
+    setFamilyTree,
+    setLegalRoadmap,
+    addFraudAlert,
+    updateAgentStatus,
   } = useCaseStore();
 
   const [inputMessage, setInputMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll chat to bottom
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  // Adjust textarea height on change
+  const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInputMessage(e.target.value);
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 160)}px`;
+    }
+  };
 
   // Initialize session if not started
   const handleStartCase = async (lang: "en" | "roman_urdu") => {
@@ -39,7 +61,6 @@ export function CaseChat() {
       });
     } catch (err) {
       console.error("Failed to initialize case", err);
-      // Fallback local session ID for demo
       const fallbackId = "case-" + Math.random().toString(36).substring(7);
       setSessionId(fallbackId);
       addMessage({
@@ -61,10 +82,16 @@ export function CaseChat() {
     }
     const sampleText =
       language === "en"
-        ? "My father Haji Ghulam Rasool died on 14 Jan 2023 in Gujranwala leaving 120 Kanals of agricultural land. He left my mother (widow), 2 sons (Tariq and Rashid), and 1 daughter (me, Fatima). My brothers conspired with the village Patwari and produced a fake unregistered Hiba deed dated 2 days before father's death claiming I gave up my share."
+        ? "My father Haji Ghulam Rasool died on 14 Jan 2023 in Gujranwala leaving 120 Kanals of agricultural land. Surviving family members are my mother (widow Kulsoom Bibi), my grandmother (Jannat Bibi), two brothers (Tariq and Rashid), and myself (daughter Fatima). My brothers colluded with the village Patwari and produced a fake oral Hiba deed dated 2 days before father's death claiming I gave up my share, and omitted my name from Mutation No. 412."
         : "Mere walid Haji Ghulam Rasool ka inteqal 14 Jan 2023 ko Gujranwala mein hua. Unhon ne 120 Kanal zameen chori. Wariseen mein meri walida (widow), 2 bhai (Tariq aur Rashid), aur 1 beti (main Fatima) hain. Mere bhaiyon ne Patwari se mil kar mere inteqal se 2 din pehle ka jaali Hiba deed banwaya aur mera hissa kha gaye.";
 
     setInputMessage(sampleText);
+    setTimeout(() => {
+      if (textareaRef.current) {
+        textareaRef.current.style.height = "auto";
+        textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 160)}px`;
+      }
+    }, 50);
   };
 
   const handleSendMessage = async (e?: React.FormEvent) => {
@@ -73,6 +100,9 @@ export function CaseChat() {
 
     const userText = inputMessage.trim();
     setInputMessage("");
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "42px";
+    }
     addMessage({ role: "user", content: userText });
 
     if (!sessionId) {
@@ -90,7 +120,15 @@ export function CaseChat() {
     }
   };
 
-  // Launch Full 8-Agent Investigation
+  // Handle Enter key for submission (Shift+Enter for newline)
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
+
+  // Launch Full 8-Agent Investigation with Polling Fallback
   const handleTriggerInvestigation = async () => {
     if (!sessionId) return;
     setIsInvestigating(true);
@@ -129,8 +167,45 @@ export function CaseChat() {
           intake_data: structuredIntake,
         }),
       });
+
+      // Polling fallback every 2 seconds to guarantee UI updates
+      const pollInterval = setInterval(async () => {
+        try {
+          const res = await fetch(`${API_BASE}/case/report/${sessionId}`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data && data.sharia_distribution) {
+              clearInterval(pollInterval);
+              setIsInvestigating(false);
+              setFinalReport(data);
+              if (data.sharia_distribution) setShariaShares(data.sharia_distribution);
+              if (data.family_tree) setFamilyTree(data.family_tree);
+              if (data.legal_roadmap) setLegalRoadmap(data.legal_roadmap);
+              if (data.fraud_report?.alerts) {
+                data.fraud_report.alerts.forEach((alert: any) => addFraudAlert(alert));
+              }
+              // Mark agents completed
+              [
+                "orchestrator",
+                "intake_agent",
+                "family_tree_agent",
+                "document_analyzer",
+                "sharia_calculator",
+                "fraud_detection_agent",
+                "legal_strategy_agent",
+                "qa_reviewer",
+              ].forEach((id) => {
+                updateAgentStatus(id, "completed", "Investigation complete");
+              });
+            }
+          }
+        } catch (err) {
+          console.error("Poll error", err);
+        }
+      }, 2000);
     } catch (err) {
       console.error("Failed to start investigation API", err);
+      setIsInvestigating(false);
     }
   };
 
@@ -178,7 +253,7 @@ export function CaseChat() {
           onClick={handleLoadFatimaCase}
           className="px-2.5 py-1 bg-accent-600 hover:bg-accent-700 text-white font-bold rounded-lg text-[11px] transition-colors shadow-xs"
         >
-          Load Fatima's Case (120 Kanals)
+          Load Fatima&apos;s Case (120 Kanals)
         </button>
       </div>
 
@@ -218,7 +293,7 @@ export function CaseChat() {
               {m.role === "user" ? <User className="w-3.5 h-3.5" /> : <Bot className="w-3.5 h-3.5" />}
             </div>
             <div
-              className={`p-3 rounded-2xl text-xs leading-relaxed ${
+              className={`p-3 rounded-2xl text-xs leading-relaxed whitespace-pre-wrap ${
                 m.role === "user"
                   ? "bg-primary-800 text-white rounded-tr-xs"
                   : "bg-slate-100 text-slate-800 rounded-tl-xs border border-slate-200/60"
@@ -228,9 +303,10 @@ export function CaseChat() {
             </div>
           </div>
         ))}
+        <div ref={messagesEndRef} />
       </div>
 
-      {/* Action Bar & Input */}
+      {/* Action Bar & Multiline Input */}
       <div className="p-3 border-t border-border bg-white space-y-2">
         {sessionId && !isInvestigating && (
           <button
@@ -249,22 +325,24 @@ export function CaseChat() {
           </div>
         )}
 
-        <form onSubmit={handleSendMessage} className="flex items-center gap-2">
-          <input
-            type="text"
+        <form onSubmit={handleSendMessage} className="flex items-end gap-2">
+          <textarea
+            ref={textareaRef}
+            rows={1}
             value={inputMessage}
-            onChange={(e) => setInputMessage(e.target.value)}
+            onChange={handleTextareaChange}
+            onKeyDown={handleKeyDown}
             placeholder={
               language === "en"
-                ? "Describe your case or family details..."
-                : "Apne case ya khandaan ke baray mein likhein..."
+                ? "Describe your case or family details (Shift+Enter for newline)..."
+                : "Apne case ya khandaan ke baray mein likhein (Shift+Enter for newline)..."
             }
-            className="flex-1 px-3.5 py-2.5 text-xs bg-slate-50 border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-800/20 text-slate-800 placeholder-slate-400"
+            className="flex-1 px-3.5 py-2.5 text-xs bg-slate-50 border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-800/20 text-slate-800 placeholder-slate-400 resize-none min-h-[42px] max-h-[160px] overflow-y-auto leading-relaxed"
           />
           <button
             type="submit"
             disabled={!inputMessage.trim()}
-            className="p-2.5 bg-primary-800 hover:bg-primary-900 disabled:opacity-40 text-white rounded-xl transition-colors shadow-xs"
+            className="p-2.5 bg-primary-800 hover:bg-primary-900 disabled:opacity-40 text-white rounded-xl transition-colors shadow-xs h-[42px] flex items-center justify-center"
           >
             <Send className="w-4 h-4" />
           </button>
