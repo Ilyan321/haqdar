@@ -161,19 +161,20 @@ async def send_message(req: CaseMessageRequest):
     updated_facts = await extract_facts_with_llm(messages, current_facts)
     session_store.update(req.session_id, {"extracted_facts": updated_facts})
 
-    # 2. Check completeness with strict criteria
+    # 2. Check completeness with strict criteria (ALL 5 core pillars must be gathered)
     has_deceased = bool(updated_facts.get("deceased_name"))
     has_heirs = ("sons_count" in updated_facts or "daughters_count" in updated_facts)
     has_property_area = bool(updated_facts.get("property_area"))
     has_location = bool(updated_facts.get("location"))
     has_dispute = bool(updated_facts.get("dispute_type"))
     
-    # Must have heirs, property description, and dispute before declaring complete
+    # Ready only when all facts have been gathered
     ready_to_launch = (
+        has_deceased and
         has_heirs and
-        (has_property_area or has_location) and
-        (has_deceased or len(messages) >= 4) and
-        (has_dispute or len(messages) >= 4)
+        has_property_area and
+        has_location and
+        has_dispute
     )
 
     # 3. Formulate dynamic prompt with LOCKED facts and MISSING facts
@@ -322,13 +323,13 @@ async def trigger_investigation(req: InvestigateRequest, background_tasks: Backg
     # Build structured intake from cumulative facts or fallback
     intake = req.intake_data
     if not intake:
-        deceased = facts.get("deceased_name", "Ilyan Khan")
-        sons = facts.get("sons_count", 2)
-        daughters = facts.get("daughters_count", 3)
+        deceased = facts.get("deceased_name", "Late Deceased")
+        sons = facts.get("sons_count", 1)
+        daughters = facts.get("daughters_count", 1)
         mother_alive = facts.get("mother_alive", False)
-        area = facts.get("property_area", "17 Acres Farm Land")
-        location = facts.get("location", "Warah, Kamber Shahdadkot, Sindh")
-        dispute = facts.get("dispute_type", "Brothers unlawfully dispossessing sisters of inheritance")
+        area = facts.get("property_area", "Family Estate")
+        location = facts.get("location", "Pakistan")
+        dispute = facts.get("dispute_type", "Unlawful Dispossession & Deprivation of Inheritance (PPC 498A)")
 
         family_list = []
         if mother_alive:
