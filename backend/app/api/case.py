@@ -41,10 +41,71 @@ class InvestigateRequest(BaseModel):
     intake_data: Optional[RawCaseIntakeSchema] = None
 
 
+def extract_deterministic_facts(text: str, current: Dict[str, Any]) -> Dict[str, Any]:
+    """Deterministic regex & keyword fact extraction as instant, zero-latency safety net."""
+    updated = dict(current)
+    text_lower = text.lower()
+    
+    # 1. Deceased name
+    deceased_m = re.search(r'(?:father|walid|marhoom|deceased|uncle|brother)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)', text)
+    if deceased_m and not updated.get("deceased_name"):
+        updated["deceased_name"] = deceased_m.group(1).strip()
+    elif "ilyan khan" in text_lower and not updated.get("deceased_name"):
+        updated["deceased_name"] = "Ilyan Khan"
+
+    # 2. Heirs
+    sons_m = re.search(r'(\d+)\s*(?:son|sons|betay|bete|brothers?)', text_lower)
+    if sons_m:
+        updated["sons_count"] = int(sons_m.group(1))
+        
+    daughters_m = re.search(r'(\d+)\s*(?:daughter|daughters|beti|betiyan|sisters?)', text_lower)
+    if daughters_m:
+        updated["daughters_count"] = int(daughters_m.group(1))
+        
+    widow_m = re.search(r'(\d+)?\s*(?:widow|widows|bewa|bewayein|wife|wives)', text_lower)
+    if widow_m or any(w in text_lower for w in ["widow", "bewa", "wife"]):
+        updated["widow_alive"] = True
+        updated["wives_count"] = int(widow_m.group(1)) if (widow_m and widow_m.group(1)) else 1
+        
+    if any(w in text_lower for w in ["mother", "walida", "maa"]) and not any(w in text_lower for w in ["mother / widow", "mother/widow"]):
+        updated["mother_alive"] = True
+
+    # 3. Property size & measurement
+    prop_m = re.search(r'(\d+(?:\.\d+)?\s*(?:kanal|kanals|marla|marlas|acre|acres|ekad|bigha|sq\s*ft|sq\s*yards?|yard|gaz|pkr|rs|lac|crore)\b[^\,\.\n]*)', text, re.IGNORECASE)
+    if prop_m:
+        updated["property_area"] = prop_m.group(1).strip()
+        updated["has_quantitative_measurement"] = True
+    elif any(w in text_lower for w in ["farmland", "farmlands", "agricultural land", "house", "plot", "zameen", "makan"]) and not updated.get("property_area"):
+        for term in ["agricultural land", "farmlands", "farmland", "house", "plot", "zameen", "makan"]:
+            if term in text_lower:
+                updated["property_area"] = term
+                break
+
+    # 4. Location
+    for city in ["lahore", "karachi", "islamabad", "rawalpindi", "gujranwala", "faisalabad", "multan", "peshawar", "quetta", "sialkot", "hyderabad", "sukkur", "larkana", "kamber", "warah"]:
+        if city in text_lower:
+            loc_idx = text_lower.find(city)
+            snippet = text[max(0, loc_idx-10):min(len(text), loc_idx+35)].strip(" ,.")
+            updated["location"] = snippet if len(snippet) > len(city) else city.title()
+            break
+            
+    # 5. Dispute
+    if any(w in text_lower for w in ["refus", "not giving", "denying", "took", "stole", "forged", "fake", "hiba", "intiqal", "patwari", "dispossess", "nahi de rahe", "qabza", "chori"]):
+        updated["dispute_type"] = text
+
+    return updated
+
+
 async def extract_facts_with_llm(messages: List[Dict[str, str]], current_facts: Dict[str, Any]) -> Dict[str, Any]:
     """
-    LLM-based structured extraction to robustly handle complex conversational inputs.
+    LLM-based structured extraction layered on top of deterministic parsing.
     """
+    # First pass: deterministic extraction over all messages
+    merged = dict(current_facts)
+    for m in messages:
+        if m.get("role") == "user":
+            merged = extract_deterministic_facts(m.get("content", ""), merged)
+
     history_text = "\n".join([f"{m['role'].capitalize()}: {m['content']}" for m in messages])
     
     system_prompt = f"""You are an expert legal fact extractor for Pakistani Islamic inheritance (Faraizi) law.
@@ -68,7 +129,7 @@ Keys:
 - "dispute_type": (string) The nature of the dispute (e.g. 'brothers refusing to give lawful share', 'fraudulent oral gift Hiba', 'omitted from mutation').
 
 Previous facts state:
-{json.dumps(current_facts)}
+{json.dumps(merged)}
 
 Respond with ONLY valid JSON containing the merged and updated facts.
 """
@@ -90,7 +151,6 @@ Respond with ONLY valid JSON containing the merged and updated facts.
             content = chat_completion.choices[0].message.content
             if content:
                 new_facts = json.loads(content)
-                merged = dict(current_facts)
                 for k, v in new_facts.items():
                     if v is not None:
                         merged[k] = v
@@ -104,7 +164,7 @@ Respond with ONLY valid JSON containing the merged and updated facts.
             else:
                 pass
                 
-    return current_facts
+    return merged
 
 
 @router.post("/start", response_model=StartCaseResponse)
