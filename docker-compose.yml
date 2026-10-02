@@ -1,0 +1,39 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: haqdar-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - PRIMARY_MODEL=llama-3.3-70b-versatile
+      - GROQ_API_KEYS=${GROQ_API_KEYS}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - haqdar-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: haqdar-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000/api
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - haqdar-network
+
+networks:
+  haqdar-network:
+    driver: bridge

@@ -9,6 +9,7 @@ import { FamilyTreeGraph } from "@/components/visualizer/FamilyTreeGraph";
 import { ShareBreakdownTable } from "@/components/reports/ShareBreakdownTable";
 import { FraudAndRoadmapView } from "@/components/reports/FraudAndRoadmapView";
 import { ReportViewer } from "@/components/reports/ReportViewer";
+import { Footer } from "@/components/common/Footer";
 import {
   Activity,
   RefreshCw,
@@ -335,6 +336,7 @@ export default function Home() {
           )}
         </div>
       </div>
+      <Footer />
     </main>
   );
 }
