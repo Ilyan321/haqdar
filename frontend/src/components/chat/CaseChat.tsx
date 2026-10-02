@@ -182,28 +182,65 @@ export function CaseChat() {
     setIsInvestigating(true);
 
     // Build heirs list from extracted facts or defaults
-    const sonsCount = extractedFacts.sons_count ?? 2;
-    const daughtersCount = extractedFacts.daughters_count ?? 3;
+    const sonsCount = extractedFacts.sons_count ?? 0;
+    const daughtersCount = extractedFacts.daughters_count ?? 0;
+    const widowAlive = extractedFacts.widow_alive ?? false;
+    const wivesCount = extractedFacts.wives_count ?? (widowAlive ? 1 : 0);
     const motherAlive = extractedFacts.mother_alive ?? false;
-    const deceasedName = extractedFacts.deceased_name || "Ilyan Khan";
-    const propertyArea = extractedFacts.property_area || "17 Acres Farm Land";
-    const propertyLocation = extractedFacts.location || "Warah, Kamber Shahdadkot, Sindh";
+    const fatherAlive = extractedFacts.father_alive ?? false;
+    const deceasedName = extractedFacts.deceased_name || "Late Deceased";
+    const dateOfDeath = extractedFacts.date_of_death || "2023-01-14";
+    const propertyArea = extractedFacts.property_area || "Family Estate";
+    const propertyLocation = extractedFacts.location || "Pakistan";
     const disputeReason = extractedFacts.dispute_type || "Brothers unlawfully dispossessing claimant sisters of inheritance";
 
     const familyMembers = [];
+    if (widowAlive || wivesCount > 0) {
+      for (let w = 0; w < Math.max(1, wivesCount); w++) {
+        familyMembers.push({
+          name: wivesCount === 1 ? "Widow" : `Widow #${w + 1}`,
+          relationship_to_deceased: "wife",
+          is_alive: true,
+          gender: "female",
+          is_claimant: false,
+        });
+      }
+    }
     if (motherAlive) {
-      familyMembers.push({ name: "Mother / Widow", relationship_to_deceased: "wife", is_alive: true, gender: "female", is_claimant: false });
+      familyMembers.push({
+        name: "Mother",
+        relationship_to_deceased: "mother",
+        is_alive: true,
+        gender: "female",
+        is_claimant: false,
+      });
+    }
+    if (fatherAlive) {
+      familyMembers.push({
+        name: "Father",
+        relationship_to_deceased: "father",
+        is_alive: true,
+        gender: "male",
+        is_claimant: false,
+      });
     }
     for (let s = 0; s < sonsCount; s++) {
-      familyMembers.push({ name: `Brother #${s + 1}`, relationship_to_deceased: "son", is_alive: true, gender: "male", is_claimant: false });
+      familyMembers.push({
+        name: sonsCount > 1 ? `Brother #${s + 1}` : "Brother",
+        relationship_to_deceased: "son",
+        is_alive: true,
+        gender: "male",
+        is_claimant: false,
+      });
     }
     for (let d = 0; d < daughtersCount; d++) {
+      const isClaimant = d === 0;
       familyMembers.push({
-        name: d === 0 ? "Claimant (Daughter)" : `Sister #${d + 1}`,
+        name: isClaimant ? "Claimant (Daughter)" : `Sister #${d}`,
         relationship_to_deceased: "daughter",
         is_alive: true,
         gender: "female",
-        is_claimant: d === 0,
+        is_claimant: isClaimant,
       });
     }
 
@@ -212,14 +249,14 @@ export function CaseChat() {
       claimant_name: "Claimant Daughter",
       claimant_language: language,
       deceased_name: deceasedName,
-      date_of_death: "2023-01-14",
+      date_of_death: dateOfDeath,
       sect: "Hanafi",
       family_members: familyMembers,
       properties: [
         {
           location: propertyLocation,
           area_description: propertyArea,
-          estimated_value_pkr: 35000000.0,
+          estimated_value_pkr: 0.0,
           claimed_documents: ["Deed / Mutation Record", disputeReason],
         },
       ],
@@ -324,11 +361,27 @@ export function CaseChat() {
             <span className="bg-white px-2 py-0.5 rounded-md border border-primary-200 text-primary-800 font-semibold flex items-center gap-1">
               <UserCheck className="w-3 h-3 text-primary-600" />
               {extractedFacts.deceased_name}
+              {extractedFacts.date_of_death && <span className="text-[10px] text-slate-500 font-normal">({extractedFacts.date_of_death})</span>}
             </span>
           )}
           {(extractedFacts.sons_count !== undefined || extractedFacts.daughters_count !== undefined) && (
             <span className="bg-white px-2 py-0.5 rounded-md border border-primary-200 text-primary-800 font-semibold flex items-center gap-1">
               👨‍👩‍👧‍👦 {extractedFacts.sons_count || 0} Sons, {extractedFacts.daughters_count || 0} Daughters
+            </span>
+          )}
+          {extractedFacts.widow_alive && (
+            <span className="bg-white px-2 py-0.5 rounded-md border border-primary-200 text-primary-800 font-semibold flex items-center gap-1">
+              💍 {extractedFacts.wives_count ? `${extractedFacts.wives_count} Widow(s)` : "Widow"}
+            </span>
+          )}
+          {extractedFacts.mother_alive && (
+            <span className="bg-white px-2 py-0.5 rounded-md border border-primary-200 text-primary-800 font-semibold flex items-center gap-1">
+              👵 Mother
+            </span>
+          )}
+          {extractedFacts.father_alive && (
+            <span className="bg-white px-2 py-0.5 rounded-md border border-primary-200 text-primary-800 font-semibold flex items-center gap-1">
+              👴 Father
             </span>
           )}
           {extractedFacts.property_area && (

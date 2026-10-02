@@ -19,10 +19,18 @@ export interface ExtractedFacts {
   date_of_death?: string;
   sons_count?: number;
   daughters_count?: number;
-  mother_alive?: boolean;
   widow_alive?: boolean;
+  wives_count?: number;
+  mother_alive?: boolean;
+  father_alive?: boolean;
+  brothers_count?: number;
+  sisters_count?: number;
   property_area?: string;
+  property_type?: string;
+  has_quantitative_measurement?: boolean;
   location?: string;
+  debts_or_liabilities?: string;
+  wills_or_bequests?: string;
   dispute_type?: string;
 }
 

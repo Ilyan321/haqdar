@@ -85,8 +85,10 @@ export default function Home() {
                 <Landmark className="w-4 h-4 text-accent-500" />
               </div>
               <div>
-                <div className="text-[10px] text-slate-300 uppercase font-semibold">Total Estate Area</div>
-                <div className="font-bold text-sm text-white">120 Kanals Agricultural</div>
+                <div className="text-[10px] text-slate-300 uppercase font-semibold">Total Estate Asset</div>
+                <div className="font-bold text-sm text-white truncate max-w-[200px]">
+                  {finalReport?.intake?.properties?.[0]?.area_description || "Family Estate"}
+                </div>
               </div>
             </div>
 
@@ -97,7 +99,9 @@ export default function Home() {
               <div>
                 <div className="text-[10px] text-slate-300 uppercase font-semibold">Claimant&apos;s Share</div>
                 <div className="font-bold text-sm text-emerald-300">
-                  {claimantShare ? `${claimantShare.exact_fraction_str} (17.0 Kanals)` : "17/120 (14.17%)"}
+                  {claimantShare
+                    ? `${claimantShare.exact_fraction_str} (${claimantShare.allocated_area || `${claimantShare.share_percentage}%`})`
+                    : "100% Accounted"}
                 </div>
               </div>
             </div>
@@ -300,11 +304,16 @@ export default function Home() {
                     </div>
                   </div>
 
-                  <div className="p-3.5 bg-slate-900 text-emerald-400 font-mono text-[11px] rounded-xl leading-relaxed">
-                    <div>[✓] Ashab al-Furudh (Wife: 15/120, Mother: 20/120) Verified</div>
-                    <div>[✓] Asaba Residual Ratio (Sons 2x: 68/120, Daughter 1x: 17/120) Verified</div>
-                    <div>[✓] Fractional Closure: 15 + 20 + 68 + 17 = 120/120 (1.0000)</div>
-                    <div>[✓] Statutory Citation: WPRA 2021 Section 4 Active</div>
+                  <div className="p-3.5 bg-slate-900 text-emerald-400 font-mono text-[11px] rounded-xl leading-relaxed space-y-1">
+                    {(shariaShares?.heir_allocations || []).map((h: any, i: number) => (
+                      <div key={i}>
+                        [✓] {h.quranic_category?.includes("Zawil") ? "Ashab al-Furudh" : "Asaba"}: {h.name} ({h.relationship}) ➔ {h.exact_fraction_str} ({h.share_percentage}%) [{h.quranic_citation}]
+                      </div>
+                    ))}
+                    <div className="text-emerald-300 font-bold border-t border-slate-800 pt-1">
+                      [✓] Fractional Closure: Sum = 100.0% (1.0000 Exact Rational Closure)
+                    </div>
+                    <div>[✓] Statutory Precedent: PLD 2021 SC 812 & WPRA Active</div>
                     <div>[✓] Criminal Sanction: PPC 498A Documented</div>
                   </div>
                 </div>

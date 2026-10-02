@@ -1,6 +1,7 @@
 import asyncio
 import json
 import time
+import re
 from typing import Dict, Any, Optional, Tuple
 
 from app.core.config import settings
@@ -258,7 +259,24 @@ class CaseOrchestrationPipeline:
         math_result = calculate_faraizi_shares(calc_heir_inputs)
 
         sharia_allocations = []
+        # Attempt to parse quantitative measurement for property allocation
+        prop_qty_match = re.search(r'([\d,]+(?:\.\d+)?)\s*([a-zA-Z\s]+)', prop_area)
+        base_qty = None
+        base_unit = None
+        if prop_qty_match:
+            try:
+                base_qty = float(prop_qty_match.group(1).replace(",", ""))
+                base_unit = prop_qty_match.group(2).strip()
+            except Exception:
+                base_qty = None
+
         for h in math_result.heir_shares:
+            if base_qty is not None and base_unit:
+                alloc_val = base_qty * (h.individual_percentage / 100.0)
+                alloc_str = f"{alloc_val:.2f} {base_unit} ({h.individual_fraction_str})"
+            else:
+                alloc_str = f"{h.individual_percentage:.2f}% of {prop_area}"
+
             sharia_allocations.append(HeirShareAllocation(
                 heir_id=h.name,
                 name=h.name,
@@ -267,7 +285,7 @@ class CaseOrchestrationPipeline:
                 quranic_category=h.category,
                 exact_fraction_str=h.individual_fraction_str,
                 share_percentage=h.individual_percentage,
-                allocated_area=f"{h.individual_percentage:.2f}% of {prop_area}",
+                allocated_area=alloc_str,
                 quranic_citation=h.quranic_basis,
                 theological_rationale=h.theological_rationale
             ))

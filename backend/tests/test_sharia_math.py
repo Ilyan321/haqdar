@@ -99,3 +99,32 @@ def test_kalalah_case():
     assert wife_share.individual_fraction_str == "1/4"
     assert brother_share.individual_fraction_str == "1/2"
     assert sister_share.individual_fraction_str == "1/4"
+
+def test_widow_two_sons_two_daughters():
+    """
+    Case with 1 Widow, 2 Sons, 2 Daughters:
+    - Widow: 1/8 (6/48)
+    - Remainder: 7/8
+    - 2 Sons (2 parts each) + 2 Daughters (1 part each) = 6 parts
+    - Each Son: (7/8) * (2/6) = 7/24 (14/48)
+    - Each Daughter: (7/8) * (1/6) = 7/48
+    - Sum: 6/48 + 14/48 + 14/48 + 7/48 + 7/48 = 48/48 = 1.0
+    """
+    heirs = [
+        HeirInput(relation="wife", count=1, name="Widow"),
+        HeirInput(relation="son", count=2, name="Son 1 & Son 2"),
+        HeirInput(relation="daughter", count=2, name="Daughter 1 & Daughter 2", is_claimant=True),
+    ]
+    res = calculate_faraizi_shares(heirs)
+    assert res.total_distributed_fraction == "1/1"
+    assert res.total_percentage == 100.0
+
+    wife_share = next(h for h in res.heir_shares if h.relation == "wife")
+    son_shares = [h for h in res.heir_shares if h.relation == "son"]
+    daughter_shares = [h for h in res.heir_shares if h.relation == "daughter"]
+
+    assert wife_share.individual_fraction_str == "1/8"
+    assert son_shares[0].individual_fraction_str == "7/24"
+    assert son_shares[1].individual_fraction_str == "7/24"
+    assert daughter_shares[0].individual_fraction_str == "7/48"
+    assert daughter_shares[1].individual_fraction_str == "7/48"
