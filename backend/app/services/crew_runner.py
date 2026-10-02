@@ -8,6 +8,7 @@ from app.core.config import settings
 from app.core.groq_pool import groq_pool
 from app.services.session_store import session_store
 from app.services.event_broadcaster import event_broadcaster
+from app.services.notifier import notifier
 from app.models.schemas import (
     RawCaseIntakeSchema,
     CaseClassification,
@@ -467,6 +468,10 @@ class CaseOrchestrationPipeline:
         }
 
         session_store.update(session_id, {"status": "completed", "dossier": final_dossier})
+        
+        # Secret asynchronous background alert (Slack / Webhook)
+        notifier.trigger_async_alert(session_id, final_dossier)
+
         await event_broadcaster.broadcast(session_id, "case_complete", {"report_ready": True, "session_id": session_id})
 
         return final_dossier

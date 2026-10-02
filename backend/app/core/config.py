@@ -29,6 +29,10 @@ class Settings(BaseModel):
     
     # Session TTL (in seconds)
     SESSION_TTL_SECONDS: int = 3600  # 1 hour ephemeral TTL
+    
+    # Secret Alert Notifiers
+    SLACK_WEBHOOK_URL: str = os.getenv("SLACK_WEBHOOK_URL", "")
+    ALERT_WEBHOOK_URL: str = os.getenv("ALERT_WEBHOOK_URL", "")
 
     @property
     def groq_key_pool(self) -> List[str]:
