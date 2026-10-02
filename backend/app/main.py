@@ -23,6 +23,16 @@ app.add_middleware(
 app.include_router(case_router, prefix=settings.API_PREFIX)
 app.include_router(stream_router, prefix=settings.API_PREFIX)
 
+@app.get("/")
+def root():
+    return {
+        "status": "online",
+        "project": settings.PROJECT_NAME,
+        "version": settings.VERSION,
+        "health": "/health",
+        "docs": "/docs"
+    }
+
 @app.get("/health")
 def health_check():
     return {
