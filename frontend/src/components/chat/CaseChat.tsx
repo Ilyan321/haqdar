@@ -34,11 +34,16 @@ export function CaseChat() {
   const [loading, setLoading] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll chat to bottom
+  // Auto-scroll chat internally to bottom without moving window
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTo({
+        top: messagesContainerRef.current.scrollHeight,
+        behavior: "smooth",
+      });
+    }
   }, [messages, isTyping]);
 
   // Adjust textarea height on change
@@ -356,7 +361,7 @@ export function CaseChat() {
       </div>
 
       {/* Message Stream */}
-      <div className="flex-1 p-4 overflow-y-auto space-y-3 min-h-[300px]">
+      <div ref={messagesContainerRef} className="flex-1 p-4 overflow-y-auto space-y-3 min-h-[300px]">
         {messages.length === 0 && (
           <div className="text-center py-10">
             <div className="w-12 h-12 rounded-2xl bg-primary-50 text-primary-800 flex items-center justify-center mx-auto mb-3 font-bold text-lg">
@@ -408,8 +413,6 @@ export function CaseChat() {
             <span>Intake Officer is typing...</span>
           </div>
         )}
-
-        <div ref={messagesEndRef} />
       </div>
 
       {/* Suggested Quick-Reply Option Chips */}
