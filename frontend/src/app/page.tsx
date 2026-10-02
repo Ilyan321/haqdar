@@ -129,7 +129,7 @@ export default function Home() {
       <div className="flex-1 p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 max-w-[1700px] w-full mx-auto items-start">
         {/* Left Column (50%): Interactive Discovery, Shares, Fraud & Dossier */}
         <div className="lg:col-span-6 space-y-6">
-          <div className="h-[480px]">
+          <div className="h-[620px]">
             <CaseChat />
           </div>
 

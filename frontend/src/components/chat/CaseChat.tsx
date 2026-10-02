@@ -361,7 +361,7 @@ export function CaseChat() {
       </div>
 
       {/* Message Stream */}
-      <div ref={messagesContainerRef} className="flex-1 p-4 overflow-y-auto space-y-3 min-h-[300px]">
+      <div ref={messagesContainerRef} className="flex-1 p-4 overflow-y-auto space-y-3">
         {messages.length === 0 && (
           <div className="text-center py-10">
             <div className="w-12 h-12 rounded-2xl bg-primary-50 text-primary-800 flex items-center justify-center mx-auto mb-3 font-bold text-lg">

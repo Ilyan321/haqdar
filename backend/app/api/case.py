@@ -63,34 +63,38 @@ def extract_quick_facts_from_text(text: str, current_facts: Dict[str, Any]) -> D
                 break
 
     # Heirs - Sons & Brothers (from claimant's perspective "2 brothers" means 2 sons of deceased)
+    num_map = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10}
+    
     sons_match = re.search(r'(\d+)\s*(?:sons?|brothers?|bhai|betay)', lower)
     if sons_match:
         facts["sons_count"] = int(sons_match.group(1))
-    elif "just 2 sons" in lower or "2 sons" in lower or "2 brothers" in lower:
-        facts["sons_count"] = 2
-    elif "1 son" in lower or "1 brother" in lower:
-        facts["sons_count"] = 1
-    elif "3 sons" in lower or "3 brothers" in lower:
-        facts["sons_count"] = 3
-    elif "no sons" in lower or "no brothers" in lower:
-        facts["sons_count"] = 0
+    else:
+        for word, val in num_map.items():
+            if f"{word} son" in lower or f"{word} brother" in lower or f"{word} bhai" in lower or f"{word} betay" in lower:
+                facts["sons_count"] = val
+                break
+        if "no sons" in lower or "no brothers" in lower:
+            facts["sons_count"] = 0
 
-    # Heirs - Daughters & Sisters (from claimant's perspective "3 sisters" or "myself and 2 sisters")
+    # Heirs - Daughters & Sisters (from claimant's perspective)
     daughters_match = re.search(r'(\d+)\s*(?:daughters?|sisters?|behne?|betiyan?)', lower)
     if daughters_match:
         facts["daughters_count"] = int(daughters_match.group(1))
-    elif "3 daughters" in lower or "3 sisters" in lower:
-        facts["daughters_count"] = 3
-    elif "2 daughters" in lower or "2 sisters" in lower:
-        facts["daughters_count"] = 2
-    elif "1 daughter" in lower or "only daughter" in lower or "myself (daughter)" in lower:
-        facts["daughters_count"] = 1
+    else:
+        for word, val in num_map.items():
+            if f"{word} daughter" in lower or f"{word} sister" in lower or f"{word} behen" in lower or f"{word} beti" in lower:
+                facts["daughters_count"] = val
+                break
+        if "only daughter" in lower or "myself (daughter)" in lower:
+            facts["daughters_count"] = 1
+        elif "no daughters" in lower or "no sisters" in lower:
+            facts["daughters_count"] = 0
 
     # Mother / Widow status
     if any(w in lower for w in ["mother died", "mother passed", "walida faut", "walida ka inteqal", "mothers died", "no mother", "no widow", "died way earlier", "died earlier"]):
         facts["mother_alive"] = False
         facts["widow_alive"] = False
-    elif any(w in lower for w in ["mother is alive", "widow is alive", "walida hayat", "mother (widow", "widow kulsoom"]):
+    elif any(w in lower for w in ["mother is alive", "widow is alive", "walida hayat", "mother (widow", "widow kulsoom", "mother alive"]):
         facts["mother_alive"] = True
         facts["widow_alive"] = True
 
@@ -153,15 +157,9 @@ async def start_case(req: StartCaseRequest):
     )
     
     initial_options = [
-        "Load Fatima's Case (120 Kanals)",
-        "2 Sons, 3 Daughters, Mother passed away",
-        "17 Acres Farm Land in Lahore",
-        "Brothers forged a fake oral gift (Hiba)"
+        "Load Fatima's Case (120 Kanals)"
     ] if not is_urdu else [
-        "Fatima ka benchmark case load karein",
-        "2 betay, 3 betiyan, walida faut ho chuki hain",
-        "17 Acre zameen Lahore mein",
-        "Bhaiyon ne jaali Hiba deed banwaya"
+        "Fatima ka benchmark case load karein"
     ]
     
     session_store.create(session_id, {
@@ -302,53 +300,13 @@ async def send_message(req: CaseMessageRequest):
                     "Shukriya. Barah-e-karam batayein ke bhaiyon ne kya kiya (jaali Hiba deed ya intiqal se naam nikalwaya)?"
                 )
 
-    # Dynamic option chips matching what is currently missing
+    # Options only for launch when case facts are ready
     options = []
     if ready_to_launch:
         options = [
-            "🚀 Launch 8-Agent Autonomous Investigation",
-            "Brothers claim fake oral Hiba deed",
-            "Excluded from revenue mutation record"
+            "🚀 Launch 8-Agent Autonomous Investigation"
         ] if not is_urdu else [
-            "🚀 8-Agent Investigation Shuru Karein",
-            "Bhai jaali Hiba deed ka daawa kar rahe hain",
-            "Intiqal se naam nikaal diya gaya hai"
-        ]
-    elif not has_heirs:
-        options = [
-            "2 Sons, 3 Daughters, Mother passed away",
-            "1 Son, 2 Daughters, Mother is alive",
-            "2 Brothers, 1 Sister (Myself)",
-            "Only Daughters, No Sons"
-        ] if not is_urdu else [
-            "2 betay, 3 betiyan, walida faut hain",
-            "1 beta, 2 betiyan, walida hayat hain",
-            "2 bhai, 1 behen (main khud)",
-            "Sirf betiyan hain, koi beta nahi"
-        ]
-    elif not has_property_area:
-        options = [
-            "17 Acres Agricultural Land",
-            "120 Kanals Agricultural Land",
-            "10 Marla Residential House",
-            "1 Kanal Urban Plot"
-        ] if not is_urdu else [
-            "17 Acre zaree zameen",
-            "120 Kanal zameen",
-            "10 Marla rehaishi ghar",
-            "1 Kanal shehri plot"
-        ]
-    elif not has_dispute:
-        options = [
-            "Fake Oral Gift (Hiba) claimed by brothers",
-            "Omitted from revenue mutation record",
-            "Brothers refusing estate partition",
-            "Forced signature on blank stamp paper"
-        ] if not is_urdu else [
-            "Bhaiyon ne jaali Hiba ka daawa kiya",
-            "Intiqal se naam nikaal diya",
-            "Wirasat taqseem karne se inkaar hai",
-            "Zabardasti stamp paper par dastakhat"
+            "🚀 8-Agent Investigation Shuru Karein"
         ]
 
     messages.append({"role": "assistant", "content": assistant_reply})
