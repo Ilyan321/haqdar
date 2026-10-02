@@ -41,104 +41,57 @@ class InvestigateRequest(BaseModel):
     intake_data: Optional[RawCaseIntakeSchema] = None
 
 
-def extract_quick_facts_from_text(text: str, current_facts: Dict[str, Any]) -> Dict[str, Any]:
+async def extract_facts_with_llm(messages: List[Dict[str, str]], current_facts: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Lightweight rule-based fact extractor to guarantee facts are never forgotten across conversation turns.
+    LLM-based structured extraction to robustly handle complex conversational inputs.
     """
-    facts = dict(current_facts)
-    lower = text.lower()
+    try:
+        client = await groq_pool.get_async_client()
+        
+        history_text = "\n".join([f"{m['role'].capitalize()}: {m['content']}" for m in messages])
+        
+        system_prompt = f"""You are an expert legal fact extractor. Extract case facts from the user's conversation.
+Return a JSON object with EXACTLY these keys. If a fact is not known yet, set it to null.
 
-    # Deceased Name
-    name_match = re.search(r'(?:name is|marhoom ka naam|walid ka naam|father\'s name is|deceased\'s name is)\s+([A-Za-z\s]+?)(?:,|\.|\band\b|\bhe\b|\bwho\b|\bdied\b|\bpassed\b|$)', text, re.I)
-    if name_match and not facts.get("deceased_name"):
-        cand = name_match.group(1).strip().title()
-        if not any(bad in cand.lower() for bad in ["passed", "died", "not", "giving", "share", "leaving", "alive"]):
-            facts["deceased_name"] = cand
+Keys:
+- "deceased_name": (string) Full name of the deceased.
+- "sons_count": (integer) Number of surviving sons (including the user if they are a son).
+- "daughters_count": (integer) Number of surviving daughters (including the user if they are a daughter).
+- "mother_alive": (boolean) Is the mother/widow of the deceased alive?
+- "property_area": (string) Details about the property (e.g. '17 acres farm lands').
+- "location": (string) Location of the property (city, town, district, e.g. 'Warah, Kamber Shahdadkot').
+- "dispute_type": (string) The nature of the dispute (e.g. 'brothers are not giving share').
 
-    # Direct name mentions like "Haji Ghulam Rasool" or "Ilyan Khan"
-    if not facts.get("deceased_name"):
-        for potential_name in ["Haji Ghulam Rasool", "Ghulam Rasool", "Ilyan Khan", "Muhammad Khan", "Abdul Rehman", "Tariq Mahmood"]:
-            if potential_name.lower() in lower:
-                facts["deceased_name"] = potential_name
-                break
+Previous facts state:
+{json.dumps(current_facts)}
 
-    # Heirs - Sons & Brothers (from claimant's perspective "2 brothers" means 2 sons of deceased)
-    num_map = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10}
-    
-    sons_match = re.search(r'(\d+)\s*(?:sons?|brothers?|bhai|betay)', lower)
-    if sons_match:
-        facts["sons_count"] = int(sons_match.group(1))
-    else:
-        for word, val in num_map.items():
-            if f"{word} son" in lower or f"{word} brother" in lower or f"{word} bhai" in lower or f"{word} betay" in lower:
-                facts["sons_count"] = val
-                break
-        if "no sons" in lower or "no brothers" in lower:
-            facts["sons_count"] = 0
-
-    # Heirs - Daughters & Sisters (from claimant's perspective)
-    daughters_match = re.search(r'(\d+)\s*(?:daughters?|sisters?|behne?|betiyan?)', lower)
-    if daughters_match:
-        facts["daughters_count"] = int(daughters_match.group(1))
-    else:
-        for word, val in num_map.items():
-            if f"{word} daughter" in lower or f"{word} sister" in lower or f"{word} behen" in lower or f"{word} beti" in lower:
-                facts["daughters_count"] = val
-                break
-        if "only daughter" in lower or "myself (daughter)" in lower:
-            facts["daughters_count"] = 1
-        elif "no daughters" in lower or "no sisters" in lower:
-            facts["daughters_count"] = 0
-
-    # Mother / Widow status
-    if any(w in lower for w in ["mother died", "mother passed", "walida faut", "walida ka inteqal", "mothers died", "no mother", "no widow", "died way earlier", "died earlier"]):
-        facts["mother_alive"] = False
-        facts["widow_alive"] = False
-    elif any(w in lower for w in ["mother is alive", "widow is alive", "walida hayat", "mother (widow", "widow kulsoom", "mother alive"]):
-        facts["mother_alive"] = True
-        facts["widow_alive"] = True
-
-    # Property size / Area
-    area_match = re.search(r'(\d+\s*(?:acres?|kanals?|marlas?|bigha|sq\s*ft|sq\s*yards?)(?:\s+of\s+[a-z\s]+)?)', lower)
-    if area_match:
-        facts["property_area"] = area_match.group(1).strip()
-    elif "17 acres" in lower:
-        facts["property_area"] = "17 Acres Farm Land"
-    elif "120 kanals" in lower:
-        facts["property_area"] = "120 Kanals Agricultural Land"
-    elif "house" in lower or "ghar" in lower:
-        if not facts.get("property_area"):
-            facts["property_area"] = "Residential Family House"
-
-    # Location
-    for loc_keyword, loc_name in [
-        ("warah", "Warah, Kamber Shahdadkot, Sindh"),
-        ("kamber", "Kamber Shahdadkot, Sindh"),
-        ("shahdadkot", "Shahdadkot, Sindh"),
-        ("gujranwala", "Gujranwala, Punjab"),
-        ("lahore", "Lahore, Punjab"),
-        ("karachi", "Karachi, Sindh"),
-        ("rawalpindi", "Rawalpindi, Punjab"),
-        ("faisalabad", "Faisalabad, Punjab"),
-        ("multan", "Multan, Punjab"),
-        ("sindh", "Sindh, Pakistan"),
-        ("punjab", "Punjab, Pakistan")
-    ]:
-        if loc_keyword in lower:
-            facts["location"] = loc_name
-            break
-
-    # Dispute / Fraud type
-    if any(w in lower for w in ["oral gift", "hiba", "fake gift", "jaali hiba", "fake oral hiba"]):
-        facts["dispute_type"] = "Forged Deathbed Oral Gift (Hiba)"
-    elif any(w in lower for w in ["omitted", "left out", "naam nikal", "naam nahi", "mutation no. 412"]):
-        facts["dispute_type"] = "Omission from Revenue Mutation (Intiqal)"
-    elif any(w in lower for w in ["coerced", "forced", "dastbardari", "signed"]):
-        facts["dispute_type"] = "Coerced Relinquishment (Dastbardari)"
-    elif any(w in lower for w in ["brothers are not giving", "seize", "qabza", "dispossessed", "refusing"]):
-        facts["dispute_type"] = "Unlawful Dispossession & Deprivation (PPC 498A)"
-
-    return facts
+Respond with ONLY valid JSON containing the merged and updated facts.
+"""
+        groq_messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": history_text}
+        ]
+        
+        chat_completion = await client.chat.completions.create(
+            model=settings.PRIMARY_MODEL,
+            messages=groq_messages,
+            temperature=0.1,
+            response_format={"type": "json_object"}
+        )
+        
+        content = chat_completion.choices[0].message.content
+        if content:
+            new_facts = json.loads(content)
+            merged = dict(current_facts)
+            for k, v in new_facts.items():
+                if v is not None:
+                    merged[k] = v
+            return merged
+            
+    except Exception as e:
+        print("Error extracting facts with LLM:", e)
+        
+    return current_facts
 
 
 @router.post("/start", response_model=StartCaseResponse)
@@ -200,7 +153,7 @@ async def send_message(req: CaseMessageRequest):
 
     # 1. Update structured facts state
     current_facts = session.get("extracted_facts", {})
-    updated_facts = extract_quick_facts_from_text(req.message, current_facts)
+    updated_facts = await extract_facts_with_llm(messages, current_facts)
     session_store.update(req.session_id, {"extracted_facts": updated_facts})
 
     # 2. Check completeness with strict criteria
@@ -268,6 +221,23 @@ async def send_message(req: CaseMessageRequest):
     else:
         try:
             client = await groq_pool.get_async_client()
+            
+            system_instruction = f"""You are HaqDar's empathetic intake agent. Your goal is to gather MISSING FACTS to build a property dispute case.
+            
+LOCKED FACTS SO FAR:
+{', '.join(known_summary) if known_summary else 'None'}
+
+MISSING FACTS TO ASK FOR:
+{', '.join(missing_items)}
+
+INSTRUCTIONS:
+1. Be empathetic but very brief.
+2. Ask exactly one question to gather ONE of the missing facts. 
+3. Do not ask for facts already in the locked facts list.
+4. Keep your response under 2 sentences.
+5. If the user language is Roman Urdu, reply in Roman Urdu. Otherwise reply in English.
+"""
+            
             groq_messages = [{"role": "system", "content": system_instruction}]
             for m in messages[-4:]:
                 groq_messages.append({"role": m["role"], "content": m["content"]})
