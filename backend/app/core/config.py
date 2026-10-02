@@ -1,8 +1,13 @@
 import os
+from pathlib import Path
 from typing import List
 from pydantic import BaseModel
 from dotenv import load_dotenv
 
+# Search for .env in current directory, backend directory, and root directory
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+load_dotenv(BASE_DIR / ".env")
+load_dotenv(BASE_DIR / "backend" / ".env")
 load_dotenv()
 
 class Settings(BaseModel):
@@ -10,9 +15,9 @@ class Settings(BaseModel):
     VERSION: str = "1.0.0"
     API_PREFIX: str = "/api"
     
-    # Primary & fallback Groq models (Non-deprecated)
-    PRIMARY_MODEL: str = "llama-3.3-70b-versatile"
-    FALLBACK_MODEL: str = "llama3-8b-8192"
+    # Active, verified Groq models
+    PRIMARY_MODEL: str = "qwen/qwen3.8-27b"
+    FALLBACK_MODEL: str = "openai/gpt-oss-120b"
     
     # Groq API Keys Pool
     GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
@@ -28,10 +33,12 @@ class Settings(BaseModel):
     @property
     def groq_key_pool(self) -> List[str]:
         keys = []
-        if self.GROQ_API_KEYS_RAW:
-            keys.extend([k.strip() for k in self.GROQ_API_KEYS_RAW.split(",") if k.strip()])
-        if self.GROQ_API_KEY and self.GROQ_API_KEY not in keys:
-            keys.append(self.GROQ_API_KEY)
+        raw = os.getenv("GROQ_API_KEYS", "") or self.GROQ_API_KEYS_RAW
+        primary = os.getenv("GROQ_API_KEY", "") or self.GROQ_API_KEY
+        if raw:
+            keys.extend([k.strip() for k in raw.split(",") if k.strip()])
+        if primary and primary not in keys:
+            keys.append(primary)
         return keys
 
 settings = Settings()
