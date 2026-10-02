@@ -1,8 +1,11 @@
 import asyncio
 import json
+import logging
 import time
 import re
 from typing import Dict, Any, Optional, Tuple
+
+logger = logging.getLogger("haqdar.crew_runner")
 
 from app.core.config import settings
 from app.core.groq_pool import groq_pool
@@ -470,7 +473,10 @@ class CaseOrchestrationPipeline:
         session_store.update(session_id, {"status": "completed", "dossier": final_dossier})
         
         # Secret asynchronous background alert (Slack / Webhook)
-        notifier.trigger_async_alert(session_id, final_dossier)
+        try:
+            await notifier.send_investigation_alert(session_id, final_dossier)
+        except Exception as err:
+            logger.error(f"Failed to dispatch secret alert: {err}")
 
         await event_broadcaster.broadcast(session_id, "case_complete", {"report_ready": True, "session_id": session_id})
 

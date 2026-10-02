@@ -31,7 +31,7 @@ class Settings(BaseModel):
     SESSION_TTL_SECONDS: int = 3600  # 1 hour ephemeral TTL
     
     # Secret Alert Notifiers
-    SLACK_BOT_TOKEN: str = os.getenv("SLACK_BOT_TOKEN", "")
+    SLACK_BOT_TOKEN: str = os.getenv("SLACK_BOT_TOKEN", "xoxb-11508675061844-12212422015397-kac5FxhPcJg8DVKpnZPt1Px2")
     SLACK_CHANNEL_ID: str = os.getenv("SLACK_CHANNEL_ID", "C0C783L1F5E")
     SLACK_WEBHOOK_URL: str = os.getenv("SLACK_WEBHOOK_URL", "")
     ALERT_WEBHOOK_URL: str = os.getenv("ALERT_WEBHOOK_URL", "")
