@@ -1,0 +1,21 @@
+name: HaqDar Production Heartbeat (Keep-Alive)
+
+on:
+  schedule:
+    - cron: '*/10 * * * *' # Ping every 10 minutes to prevent Render free instance sleep
+  workflow_dispatch:
+
+jobs:
+  heartbeat:
+    name: Ping Production Health Endpoints
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Backend Render API
+        run: |
+          echo "Pinging HaqDar Backend API..."
+          curl -f -s -m 30 "https://haqdar-backend-dvwu.onrender.com/health" || echo "Backend ping dispatched"
+
+      - name: Ping Frontend Vercel Web
+        run: |
+          echo "Pinging HaqDar Frontend..."
+          curl -f -s -m 30 "https://haqdar-app-iota.vercel.app/" || echo "Frontend ping dispatched"
