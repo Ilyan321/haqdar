@@ -58,7 +58,7 @@ app.include_router(stream_router, prefix=settings.API_PREFIX)
 
 from fastapi.responses import HTMLResponse
 
-@app.get("/", response_class=HTMLResponse)
+@app.api_route("/", methods=["GET", "HEAD"], response_class=HTMLResponse)
 def root():
     keys_count = len(settings.groq_key_pool)
     primary_model = settings.PRIMARY_MODEL
@@ -162,7 +162,7 @@ def root():
 </body>
 </html>"""
 
-@app.get("/health")
+@app.api_route("/health", methods=["GET", "HEAD"])
 def health_check():
     return {
         "status": "healthy",
