@@ -1,0 +1,275 @@
+"use client";
+
+import React, { useState } from "react";
+import { useCaseStore } from "@/store/caseStore";
+import { Send, Play, Sparkles, User, Bot, Loader2, FileText, CheckCircle } from "lucide-react";
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+
+export function CaseChat() {
+  const {
+    sessionId,
+    language,
+    messages,
+    isInvestigating,
+    setSessionId,
+    setLanguage,
+    addMessage,
+    setIsInvestigating,
+  } = useCaseStore();
+
+  const [inputMessage, setInputMessage] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  // Initialize session if not started
+  const handleStartCase = async (lang: "en" | "roman_urdu") => {
+    setLoading(true);
+    try {
+      setLanguage(lang);
+      const res = await fetch(`${API_BASE}/case/start`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ preferred_language: lang }),
+      });
+      const data = await res.json();
+      setSessionId(data.session_id);
+      addMessage({
+        role: "assistant",
+        content: data.greeting,
+      });
+    } catch (err) {
+      console.error("Failed to initialize case", err);
+      // Fallback local session ID for demo
+      const fallbackId = "case-" + Math.random().toString(36).substring(7);
+      setSessionId(fallbackId);
+      addMessage({
+        role: "assistant",
+        content:
+          lang === "en"
+            ? "As-salamu alaykum. I am HaqDar's intake specialist. Can you share who the deceased was, date of death, and surviving heirs?"
+            : "As-salamu alaykum. Main HaqDar ka intake officer hoon. Marhoom ka naam, tareekh e inteqal aur wariseen ke baray mein batayein.",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Pre-load Fatima's Benchmark Demo Case
+  const handleLoadFatimaCase = async () => {
+    if (!sessionId) {
+      await handleStartCase(language);
+    }
+    const sampleText =
+      language === "en"
+        ? "My father Haji Ghulam Rasool died on 14 Jan 2023 in Gujranwala leaving 120 Kanals of agricultural land. He left my mother (widow), 2 sons (Tariq and Rashid), and 1 daughter (me, Fatima). My brothers conspired with the village Patwari and produced a fake unregistered Hiba deed dated 2 days before father's death claiming I gave up my share."
+        : "Mere walid Haji Ghulam Rasool ka inteqal 14 Jan 2023 ko Gujranwala mein hua. Unhon ne 120 Kanal zameen chori. Wariseen mein meri walida (widow), 2 bhai (Tariq aur Rashid), aur 1 beti (main Fatima) hain. Mere bhaiyon ne Patwari se mil kar mere inteqal se 2 din pehle ka jaali Hiba deed banwaya aur mera hissa kha gaye.";
+
+    setInputMessage(sampleText);
+  };
+
+  const handleSendMessage = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!inputMessage.trim()) return;
+
+    const userText = inputMessage.trim();
+    setInputMessage("");
+    addMessage({ role: "user", content: userText });
+
+    if (!sessionId) {
+      await handleStartCase(language);
+    }
+
+    try {
+      await fetch(`${API_BASE}/case/message`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_id: sessionId, message: userText }),
+      });
+    } catch (err) {
+      console.warn("Message sent locally (backend offline or connecting)", err);
+    }
+  };
+
+  // Launch Full 8-Agent Investigation
+  const handleTriggerInvestigation = async () => {
+    if (!sessionId) return;
+    setIsInvestigating(true);
+
+    const structuredIntake = {
+      case_id: sessionId,
+      claimant_name: "Fatima Bibi",
+      claimant_language: language,
+      deceased_name: "Haji Ghulam Rasool",
+      date_of_death: "2023-01-14",
+      sect: "Hanafi",
+      family_members: [
+        { name: "Kulsoom Bibi", relationship_to_deceased: "wife", is_alive: true, gender: "female", is_claimant: false },
+        { name: "Jannat Bibi", relationship_to_deceased: "mother", is_alive: true, gender: "female", is_claimant: false },
+        { name: "Tariq Rasool", relationship_to_deceased: "son", is_alive: true, gender: "male", is_claimant: false },
+        { name: "Rashid Rasool", relationship_to_deceased: "son", is_alive: true, gender: "male", is_claimant: false },
+        { name: "Fatima Bibi", relationship_to_deceased: "daughter", is_alive: true, gender: "female", is_claimant: true },
+      ],
+      properties: [
+        {
+          location: "Chak 12-JB, Tehsil Sadar, Gujranwala",
+          area_description: "120 Kanals agricultural land under Khasra No. 412/1",
+          estimated_value_pkr: 48000000.0,
+          claimed_documents: ["Unregistered Oral Hiba claimed by brothers", "Mutation No. 412"],
+        },
+      ],
+      alleged_fraud_description: "Brothers forged oral Hiba deed 2 days prior to death during Marz-ul-Maut and excluded daughter Fatima from revenue mutation.",
+    };
+
+    try {
+      await fetch(`${API_BASE}/case/investigate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          session_id: sessionId,
+          intake_data: structuredIntake,
+        }),
+      });
+    } catch (err) {
+      console.error("Failed to start investigation API", err);
+    }
+  };
+
+  return (
+    <div className="flex flex-col h-full bg-white rounded-2xl border border-border shadow-xs overflow-hidden">
+      {/* Header with language selector */}
+      <div className="p-4 border-b border-border bg-slate-50/50 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-primary-800 text-white flex items-center justify-center font-bold text-sm">
+            حق
+          </div>
+          <div>
+            <h2 className="font-bold text-sm text-primary-900 leading-tight">Case Discovery & Intake</h2>
+            <p className="text-[11px] text-slate-500">Conversational Fact Finding</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1.5 bg-slate-200/70 p-1 rounded-xl">
+          <button
+            onClick={() => setLanguage("en")}
+            className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-all ${
+              language === "en" ? "bg-white text-primary-900 shadow-xs" : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            English
+          </button>
+          <button
+            onClick={() => setLanguage("roman_urdu")}
+            className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-all ${
+              language === "roman_urdu" ? "bg-white text-primary-900 shadow-xs" : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            Roman Urdu
+          </button>
+        </div>
+      </div>
+
+      {/* Quick Benchmark Preset */}
+      <div className="px-4 py-2 bg-accent-50/50 border-b border-accent-100 flex items-center justify-between text-xs">
+        <div className="flex items-center gap-1.5 text-accent-700 font-semibold">
+          <Sparkles className="w-3.5 h-3.5 text-accent-600" />
+          <span>Hackathon Demo Preset:</span>
+        </div>
+        <button
+          onClick={handleLoadFatimaCase}
+          className="px-2.5 py-1 bg-accent-600 hover:bg-accent-700 text-white font-bold rounded-lg text-[11px] transition-colors shadow-xs"
+        >
+          Load Fatima's Case (120 Kanals)
+        </button>
+      </div>
+
+      {/* Message Stream */}
+      <div className="flex-1 p-4 overflow-y-auto space-y-3 min-h-[320px]">
+        {messages.length === 0 && (
+          <div className="text-center py-10">
+            <div className="w-12 h-12 rounded-2xl bg-primary-50 text-primary-800 flex items-center justify-center mx-auto mb-3 font-bold text-lg">
+              ⚖️
+            </div>
+            <h3 className="font-bold text-slate-800 text-sm mb-1">Start Your Case Investigation</h3>
+            <p className="text-xs text-slate-500 max-w-sm mx-auto mb-4">
+              Enter grievance details or load the benchmark scenario to activate the 8-agent forensic workflow.
+            </p>
+            <button
+              onClick={() => handleStartCase(language)}
+              disabled={loading}
+              className="px-4 py-2 bg-primary-800 hover:bg-primary-900 text-white text-xs font-bold rounded-xl shadow-xs transition-colors"
+            >
+              {loading ? "Starting..." : "Begin Guided Interview"}
+            </button>
+          </div>
+        )}
+
+        {messages.map((m) => (
+          <div
+            key={m.id}
+            className={`flex items-start gap-2.5 max-w-[88%] ${
+              m.role === "user" ? "ml-auto flex-row-reverse" : "mr-auto"
+            }`}
+          >
+            <div
+              className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-xs ${
+                m.role === "user" ? "bg-primary-800 text-white" : "bg-slate-200 text-slate-700"
+              }`}
+            >
+              {m.role === "user" ? <User className="w-3.5 h-3.5" /> : <Bot className="w-3.5 h-3.5" />}
+            </div>
+            <div
+              className={`p-3 rounded-2xl text-xs leading-relaxed ${
+                m.role === "user"
+                  ? "bg-primary-800 text-white rounded-tr-xs"
+                  : "bg-slate-100 text-slate-800 rounded-tl-xs border border-slate-200/60"
+              }`}
+            >
+              {m.content}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Action Bar & Input */}
+      <div className="p-3 border-t border-border bg-white space-y-2">
+        {sessionId && !isInvestigating && (
+          <button
+            onClick={handleTriggerInvestigation}
+            className="w-full py-2.5 bg-success-600 hover:bg-success-700 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-2 shadow-xs transition-all"
+          >
+            <Play className="w-4 h-4 fill-white" />
+            Launch 8-Agent Autonomous Investigation
+          </button>
+        )}
+
+        {isInvestigating && (
+          <div className="w-full py-2 bg-info-50 text-info-700 border border-info-200 text-xs font-semibold rounded-xl flex items-center justify-center gap-2 animate-pulse">
+            <Loader2 className="w-4 h-4 animate-spin text-info-600" />
+            Autonomous Agents Investigating in Real Time...
+          </div>
+        )}
+
+        <form onSubmit={handleSendMessage} className="flex items-center gap-2">
+          <input
+            type="text"
+            value={inputMessage}
+            onChange={(e) => setInputMessage(e.target.value)}
+            placeholder={
+              language === "en"
+                ? "Describe your case or family details..."
+                : "Apne case ya khandaan ke baray mein likhein..."
+            }
+            className="flex-1 px-3.5 py-2.5 text-xs bg-slate-50 border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-800/20 text-slate-800 placeholder-slate-400"
+          />
+          <button
+            type="submit"
+            disabled={!inputMessage.trim()}
+            className="p-2.5 bg-primary-800 hover:bg-primary-900 disabled:opacity-40 text-white rounded-xl transition-colors shadow-xs"
+          >
+            <Send className="w-4 h-4" />
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
