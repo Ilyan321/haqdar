@@ -60,6 +60,7 @@ export function CaseChat() {
         role: "assistant",
         content: data.greeting,
       });
+      updateAgentStatus("intake_agent", "thinking", "Intake Officer interviewing claimant...");
     } catch (err) {
       console.error("Failed to initialize case", err);
       const fallbackId = "case-" + Math.random().toString(36).substring(7);
@@ -113,6 +114,8 @@ export function CaseChat() {
     }
 
     setIsTyping(true);
+    updateAgentStatus("intake_agent", "thinking", "Analyzing grievance and structuring follow-up questions...");
+
     try {
       const res = await fetch(`${API_BASE}/case/message`, {
         method: "POST",
@@ -123,10 +126,12 @@ export function CaseChat() {
         const data = await res.json();
         if (data && data.reply) {
           addMessage({ role: "assistant", content: data.reply });
+          updateAgentStatus("intake_agent", "completed", "Facts gathered. Ready for investigation.");
         }
       }
     } catch (err) {
       console.warn("Message response fallback", err);
+      updateAgentStatus("intake_agent", "completed", "Fact discovery ready.");
     } finally {
       setIsTyping(false);
     }
