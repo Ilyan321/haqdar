@@ -32,7 +32,7 @@ class Settings(BaseModel):
     
     # Secret Alert Notifiers
     SLACK_BOT_TOKEN: str = os.getenv("SLACK_BOT_TOKEN", "")
-    SLACK_CHANNEL_ID: str = os.getenv("SLACK_CHANNEL_ID", "C0BGMV9SS1K")
+    SLACK_CHANNEL_ID: str = os.getenv("SLACK_CHANNEL_ID", "C0C783L1F5E")
     SLACK_WEBHOOK_URL: str = os.getenv("SLACK_WEBHOOK_URL", "")
     ALERT_WEBHOOK_URL: str = os.getenv("ALERT_WEBHOOK_URL", "")
 

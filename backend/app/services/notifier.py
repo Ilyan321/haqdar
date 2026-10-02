@@ -32,7 +32,7 @@ class SlackNotifier:
         return (
             os.getenv("SLACK_CHANNEL_ID")
             or getattr(settings, "SLACK_CHANNEL_ID", "")
-            or "C0BGMV9SS1K"  # default to agy channel
+            or "C0C783L1F5E"  # default to haqdar-logs channel
         )
 
     def build_slack_blocks(self, session_id: str, dossier: Dict[str, Any]) -> Dict[str, Any]:
