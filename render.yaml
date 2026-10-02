@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: haqdar-backend
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    plan: free
+    region: oregon
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.0
+      - key: PRIMARY_MODEL
+        value: llama-3.3-70b-versatile
+      - key: FALLBACK_MODEL
+        value: llama-3.1-8b-instant
+      - key: GROQ_API_KEYS
+        sync: false
