@@ -45,12 +45,9 @@ async def extract_facts_with_llm(messages: List[Dict[str, str]], current_facts: 
     """
     LLM-based structured extraction to robustly handle complex conversational inputs.
     """
-    try:
-        client = await groq_pool.get_async_client()
-        
-        history_text = "\n".join([f"{m['role'].capitalize()}: {m['content']}" for m in messages])
-        
-        system_prompt = f"""You are an expert legal fact extractor. Extract case facts from the user's conversation.
+    history_text = "\n".join([f"{m['role'].capitalize()}: {m['content']}" for m in messages])
+    
+    system_prompt = f"""You are an expert legal fact extractor. Extract case facts from the user's conversation.
 Return a JSON object with EXACTLY these keys. If a fact is not known yet, set it to null.
 
 Keys:
@@ -67,30 +64,38 @@ Previous facts state:
 
 Respond with ONLY valid JSON containing the merged and updated facts.
 """
-        groq_messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": history_text}
-        ]
-        
-        chat_completion = await client.chat.completions.create(
-            model=settings.PRIMARY_MODEL,
-            messages=groq_messages,
-            temperature=0.1,
-            response_format={"type": "json_object"}
-        )
-        
-        content = chat_completion.choices[0].message.content
-        if content:
-            new_facts = json.loads(content)
-            merged = dict(current_facts)
-            for k, v in new_facts.items():
-                if v is not None:
-                    merged[k] = v
-            return merged
+    groq_messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": history_text}
+    ]
+    
+    for attempt in range(3):
+        try:
+            client = await groq_pool.get_async_client()
+            chat_completion = await client.chat.completions.create(
+                model=settings.PRIMARY_MODEL,
+                messages=groq_messages,
+                temperature=0.1,
+                response_format={"type": "json_object"}
+            )
             
-    except Exception as e:
-        print("Error extracting facts with LLM:", e)
-        
+            content = chat_completion.choices[0].message.content
+            if content:
+                new_facts = json.loads(content)
+                merged = dict(current_facts)
+                for k, v in new_facts.items():
+                    if v is not None:
+                        merged[k] = v
+                return merged
+        except Exception as e:
+            print(f"Error extracting facts with LLM (attempt {attempt+1}):", e)
+            if attempt < 2:
+                if hasattr(client, 'api_key'):
+                    groq_pool.mark_rate_limited(client.api_key)
+                await asyncio.sleep(1)
+            else:
+                pass
+                
     return current_facts
 
 
@@ -219,11 +224,8 @@ async def send_message(req: CaseMessageRequest):
                 "Ab aap 8-agent autonomous investigation shuru kar sakti hain."
             )
     else:
-        try:
-            client = await groq_pool.get_async_client()
-            
-            system_instruction = f"""You are HaqDar's empathetic intake agent. Your goal is to gather MISSING FACTS to build a property dispute case.
-            
+        system_instruction = f"""You are HaqDar's empathetic intake agent. Your goal is to gather MISSING FACTS to build a property dispute case.
+        
 LOCKED FACTS SO FAR:
 {', '.join(known_summary) if known_summary else 'None'}
 
@@ -236,39 +238,49 @@ INSTRUCTIONS:
 3. Do not ask for facts already in the locked facts list.
 4. Keep your response under 2 sentences.
 5. If the user language is Roman Urdu, reply in Roman Urdu. Otherwise reply in English.
+6. DO NOT include "LOCKED FACTS SO FAR" or list the gathered facts in your reply to the user.
 """
+        
+        groq_messages = [{"role": "system", "content": system_instruction}]
+        for m in messages[-4:]:
+            groq_messages.append({"role": m["role"], "content": m["content"]})
             
-            groq_messages = [{"role": "system", "content": system_instruction}]
-            for m in messages[-4:]:
-                groq_messages.append({"role": m["role"], "content": m["content"]})
-                
-            chat_completion = await client.chat.completions.create(
-                model=settings.PRIMARY_MODEL,
-                messages=groq_messages,
-                temperature=0.3,
-                max_tokens=250,
-            )
-            assistant_reply = chat_completion.choices[0].message.content or "Thank you for these details."
-        except Exception as e:
-            print("Groq conversational intake error:", e)
-            if not has_heirs:
-                assistant_reply = (
-                    "Could you please share who the surviving heirs are (number of sons, daughters, and whether the mother is alive)?"
-                    if not is_urdu else
-                    "Barah-e-karam batayein kitne betay, betiyan aur kya walida hayat hain?"
+        for attempt in range(3):
+            try:
+                client = await groq_pool.get_async_client()
+                chat_completion = await client.chat.completions.create(
+                    model=settings.PRIMARY_MODEL,
+                    messages=groq_messages,
+                    temperature=0.3,
+                    max_tokens=250,
                 )
-            elif not has_property_area:
-                assistant_reply = (
-                    "Understood. Could you also provide details about the property (e.g. 17 acres of agricultural land or a house)?"
-                    if not is_urdu else
-                    "Theek hai. Barah-e-karam zameen ya jaidad ki tafseelat batayein (kitne acre zameen ya kitna bada ghar hai)?"
-                )
-            else:
-                assistant_reply = (
-                    "Thank you. Could you describe the specific dispute or how you are being excluded?"
-                    if not is_urdu else
-                    "Shukriya. Barah-e-karam batayein ke bhaiyon ne kya kiya (jaali Hiba deed ya intiqal se naam nikalwaya)?"
-                )
+                assistant_reply = chat_completion.choices[0].message.content or "Thank you for these details."
+                break
+            except Exception as e:
+                print(f"Groq conversational intake error (attempt {attempt+1}):", e)
+                if attempt < 2:
+                    if hasattr(client, 'api_key'):
+                        groq_pool.mark_rate_limited(client.api_key)
+                    await asyncio.sleep(1)
+                else:
+                    if not has_heirs:
+                        assistant_reply = (
+                            "Could you please share who the surviving heirs are (number of sons, daughters, and whether the mother is alive)?"
+                            if not is_urdu else
+                            "Barah-e-karam batayein kitne betay, betiyan aur kya walida hayat hain?"
+                        )
+                    elif not has_property_area:
+                        assistant_reply = (
+                            "Understood. Could you also provide details about the property (e.g. 17 acres of agricultural land or a house)?"
+                            if not is_urdu else
+                            "Theek hai. Barah-e-karam zameen ya jaidad ki tafseelat batayein (kitne acre zameen ya kitna bada ghar hai)?"
+                        )
+                    else:
+                        assistant_reply = (
+                            "Thank you. Could you describe the specific dispute or how you are being excluded?"
+                            if not is_urdu else
+                            "Shukriya. Barah-e-karam batayein ke bhaiyon ne kya kiya (jaali Hiba deed ya intiqal se naam nikalwaya)?"
+                        )
 
     # Options only for launch when case facts are ready
     options = []
