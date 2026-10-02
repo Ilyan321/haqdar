@@ -87,7 +87,13 @@ export const useCaseStore = create<CaseState>((set) => ({
   setFamilyTree: (tree) => set({ familyTree: tree }),
   setShariaShares: (shares) => set({ shariaShares: shares }),
   addFraudAlert: (alert) =>
-    set((state) => ({ fraudAlerts: [...state.fraudAlerts, alert] })),
+    set((state) => {
+      const exists = state.fraudAlerts.some(
+        (a) => a.alert_id === alert.alert_id || a.fraud_type === alert.fraud_type
+      );
+      if (exists) return state;
+      return { fraudAlerts: [...state.fraudAlerts, alert] };
+    }),
   setLegalRoadmap: (roadmap) => set({ legalRoadmap: roadmap }),
   setFinalReport: (report) => set({ finalReport: report }),
   setIsInvestigating: (inv) => set({ isInvestigating: inv }),
