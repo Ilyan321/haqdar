@@ -13,7 +13,7 @@
 
 *An 8-Agent Autonomous Legal Tech Platform built for the HEC × PakAngels Generative & Agentic AI Hackathon.*
 
-[🌐 Live Brief](http://haqdar-idea.aenox.me/) • [📕 Project Brief PDF](./HaqDar-Project-Brief.pdf) • [📄 Masterplan](./MASTERPLAN.md) • [📐 Architecture Doc](./docs/ARCHITECTURE.md) • [📋 PRD](./docs/PRD.md)
+[🌐 Live Platform](https://haqdar.aenox.me/) • [📕 Project Brief PDF](./HaqDar-Project-Brief.pdf) • [📄 Masterplan](./MASTERPLAN.md) • [📐 Architecture Doc](./docs/ARCHITECTURE.md) • [📋 PRD](./docs/PRD.md)
 
 </div>
 

@@ -834,7 +834,7 @@ flowchart LR
 # ==========================================
 PORT=8000
 ENVIRONMENT=production
-CORS_ORIGINS=http://localhost:3000,https://haqdar.vercel.app,https://haqdar-idea.aenox.me
+CORS_ORIGINS=http://localhost:3000,https://haqdar.vercel.app,https://haqdar.aenox.me
 
 # Groq API Keys (Pool of 5 for Rate Limit Rotation)
 GROQ_API_KEYS=gsk_key1_abc...,gsk_key2_def...,gsk_key3_ghi...,gsk_key4_jkl...,gsk_key5_mno...
