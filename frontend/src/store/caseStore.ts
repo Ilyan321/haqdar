@@ -67,20 +67,22 @@ export interface CaseState {
   resetCase: () => void;
 }
 
+const INITIAL_AGENT_STATUSES: Record<string, AgentStatus> = {
+  orchestrator: { agent_id: "orchestrator", status: "idle", message: "Awaiting case assignment" },
+  intake_agent: { agent_id: "intake_agent", status: "idle", message: "Ready for claimant interview" },
+  family_tree_agent: { agent_id: "family_tree_agent", status: "idle", message: "Awaiting genealogy roster" },
+  document_analyzer: { agent_id: "document_analyzer", status: "idle", message: "Awaiting property deeds" },
+  sharia_calculator: { agent_id: "sharia_calculator", status: "idle", message: "Faraizi engine standby" },
+  fraud_detection_agent: { agent_id: "fraud_detection_agent", status: "idle", message: "Anti-corruption audit standby" },
+  legal_strategy_agent: { agent_id: "legal_strategy_agent", status: "idle", message: "Ombudsperson roadmap ready" },
+  qa_reviewer: { agent_id: "qa_reviewer", status: "idle", message: "Judicial review gatekeeper active" },
+};
+
 export const useCaseStore = create<CaseState>((set) => ({
   sessionId: null,
   language: "en",
   messages: [],
-  agentStatuses: {
-    orchestrator: { agent_id: "orchestrator", status: "idle", message: "Awaiting case assignment" },
-    intake_agent: { agent_id: "intake_agent", status: "idle", message: "Ready for claimant interview" },
-    family_tree_agent: { agent_id: "family_tree_agent", status: "idle", message: "Awaiting genealogy roster" },
-    document_analyzer: { agent_id: "document_analyzer", status: "idle", message: "Awaiting property deeds" },
-    sharia_calculator: { agent_id: "sharia_calculator", status: "idle", message: "Faraizi engine standby" },
-    fraud_detection_agent: { agent_id: "fraud_detection_agent", status: "idle", message: "Anti-corruption audit standby" },
-    legal_strategy_agent: { agent_id: "legal_strategy_agent", status: "idle", message: "Ombudsperson roadmap ready" },
-    qa_reviewer: { agent_id: "qa_reviewer", status: "idle", message: "Judicial review gatekeeper active" },
-  },
+  agentStatuses: INITIAL_AGENT_STATUSES,
   pipelineStage: "IDLE",
   familyTree: null,
   shariaShares: null,
@@ -134,6 +136,7 @@ export const useCaseStore = create<CaseState>((set) => ({
     set({
       sessionId: null,
       messages: [],
+      agentStatuses: INITIAL_AGENT_STATUSES,
       pipelineStage: "IDLE",
       familyTree: null,
       shariaShares: null,
