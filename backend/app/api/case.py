@@ -47,11 +47,29 @@ def extract_deterministic_facts(text: str, current: Dict[str, Any]) -> Dict[str,
     text_lower = text.lower()
     
     # 1. Deceased name
-    deceased_m = re.search(r'(?:father|walid|marhoom|deceased|uncle|brother|name is|name was)\s+(?:named\s+|called\s+)?([A-Za-z]+(?:\s+[A-Za-z]+)*)', text)
-    if deceased_m and not updated.get("deceased_name"):
-        val = deceased_m.group(1).strip().title()
-        if val.lower() not in ["died", "passed", "left", "leaving", "in", "the"]:
-            updated["deceased_name"] = val
+    deceased_name_cand = None
+    m = re.search(r'(?:name\s+(?:is|was)|naam\s+(?:hai|tha)|named|called)\s+([A-Za-z]+(?:\s+[A-Za-z]+){0,3})', text, re.IGNORECASE)
+    if not m:
+        m = re.search(r'(?<!apne\s)(?:naam|name)\s+([A-Za-z]+(?:\s+[A-Za-z]+){0,3})\s+(?:tha|hai|the|is|was)', text, re.IGNORECASE)
+    if m:
+        deceased_name_cand = m.group(1).strip()
+    else:
+        m = re.search(r'(?:marhoom|deceased|father|walid)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})', text)
+        if m:
+            deceased_name_cand = m.group(1).strip()
+            
+    if deceased_name_cand and not updated.get("deceased_name"):
+        cand_words = deceased_name_cand.lower().split()
+        invalid_words = {
+            "ho", "gaye", "gaya", "hain", "hai", "the", "tha", "thi", "ka", "ki", "ke", "ko", "ne",
+            "sahab", "sahib", "marhoom", "died", "passed", "away", "left", "leaving", "in", "the",
+            "and", "aur", "mere", "mera", "meri", "apne", "apna", "apni", "bhai", "bhaiyon", "zameen",
+            "hissa", "par", "bohat", "afsos", "ha", "bro", "yes", "no", "recently", "karwa", "karwai",
+            "karwaya", "karwana", "li", "lia", "di", "dia"
+        }
+        valid_words = [w for w in cand_words if w not in invalid_words]
+        if valid_words and cand_words[0] not in invalid_words and not any(w in invalid_words for w in cand_words) and len(cand_words) <= 4:
+            updated["deceased_name"] = deceased_name_cand.title()
 
     # 2. Heirs
     sons_m = re.search(r'(\d+)\s*(?:son|sons|betay|bete|brothers?)\b', text_lower)
@@ -147,7 +165,7 @@ async def extract_facts_with_llm(messages: List[Dict[str, str]], current_facts: 
 Extract case facts from the conversation accurately. Return a JSON object with EXACTLY these keys. If a fact is not mentioned or unknown, set it to null.
 
 Keys:
-- "deceased_name": (string) Full name of the deceased person (e.g. 'Chaudhry Mohammad Aslam').
+- "deceased_name": (string or null) Explicit personal name of the deceased person only (e.g. 'Chaudhry Mohammad Aslam', 'Haji Ghulam Rasool'). If the claimant only says 'my father passed away' or 'walid marhoom' without stating their actual name, set this strictly to null. DO NOT put verbs, sentences, or phrases into deceased_name.
 - "date_of_death": (string) Date or approximate time of death (e.g. '14 Jan 2023').
 - "sons_count": (integer or null) Explicit number of surviving sons/brothers. If claimant only says 'my brothers' without a specific number, set to null.
 - "daughters_count": (integer or null) Explicit number of surviving daughters/sisters (including claimant if claimant is a daughter).
@@ -181,6 +199,7 @@ Respond with ONLY valid JSON containing the merged and updated facts.
                 model=settings.PRIMARY_MODEL,
                 messages=groq_messages,
                 temperature=0.1,
+                max_tokens=400,
                 response_format={"type": "json_object"}
             )
             
@@ -269,11 +288,22 @@ async def send_message(req: CaseMessageRequest):
     
     lang = session.get("language", "en")
     is_urdu = lang == "roman_urdu"
+    
+    # Auto-detect Roman Urdu if user speaks Urdu/Roman Urdu
+    urdu_indicators = [
+        "walid", "marhoom", "bhaiyon", "bhai", "zameen", "hissa", "nahi de", "karwa",
+        "inteqal", "betay", "betiyan", "bewa", "jaidad", "kahan", "kitne", "sharia",
+        "qanoon", "behan", "behen", "walida", "chori", "qabza", "patwari", "karein",
+        "hain", "tha", "thi", "mera", "meri", "mere", "apne", "apni", "afsos", "ha bro"
+    ]
+    if any(kw in req.message.lower() for kw in urdu_indicators):
+        is_urdu = True
+        session["language"] = "roman_urdu"
 
     # 1. Update structured facts state
     current_facts = session.get("extracted_facts", {})
     updated_facts = await extract_facts_with_llm(messages, current_facts)
-    session_store.update(req.session_id, {"extracted_facts": updated_facts})
+    session_store.update(req.session_id, {"extracted_facts": updated_facts, "language": session["language"]})
 
     # 2. Check completeness with strict criteria (ALL essential inheritance pillars)
     has_deceased = bool(updated_facts.get("deceased_name"))
@@ -369,6 +399,24 @@ async def send_message(req: CaseMessageRequest):
                 "Ab aap 8-agent autonomous investigation shuru kar sakti hain."
             )
     else:
+        if is_urdu:
+            lang_rules = """LANGUAGE REQUIREMENT: ROMAN URDU
+- Respond ONLY in natural, empathetic Roman Urdu.
+- ALWAYS ask a direct, conversational question ending with '?' to gather the highest priority missing fact.
+- Do NOT repeat generic condolences or legal statements without asking a direct question.
+- Roman Urdu phrasing examples:
+  * If deceased name/date is missing: "Aap ke marhoom walid/rishtedaar ka mukammal naam kya tha aur unka inteqal kab hua tha?"
+  * If heirs missing: "Marhoom ke kul kitne betay, kitni betiyan hain aur kya unki bewa (ya walida) hayat hain?"
+  * If property size missing: "Zameen ki kul paimaish kitni hai (kitne Kanal, Marla, ya Acre zameen hai)?"
+  * If location missing: "Yeh jaidad kahan waqia hai (shehr, tehsil ya gaon ka naam batayein)?"
+- Keep your response strictly under 2 sentences and end with a clear question."""
+        else:
+            lang_rules = """LANGUAGE REQUIREMENT: ENGLISH
+- Respond in professional, empathetic English.
+- Ask exactly ONE clear question focusing on the highest priority missing fact.
+- If the user mentioned a property category like 'farmlands' or 'house' without size/units, specifically ask: 'What is the total size or measurement of the property (e.g., how many Kanals, Marlas, or Acres, or its estimated value)?'
+- Keep your reply concise (under 2 sentences)."""
+
         system_instruction = f"""You are HaqDar's empathetic legal intake agent. Your goal is to gather MISSING FACTS to accurately calculate Islamic inheritance shares and build a recovery petition.
         
 LOCKED FACTS SO FAR:
@@ -377,14 +425,11 @@ LOCKED FACTS SO FAR:
 CRITICAL MISSING FACTS NEEDED:
 {', '.join(missing_items)}
 
-IMPORTANT RULES:
-1. Be empathetic and professional.
-2. Ask exactly ONE clear question focusing on the highest priority missing fact.
-3. If the user mentioned a property category like 'farmlands' or 'house' without size/units, specifically ask: 'What is the total size or measurement of the property (e.g., how many Kanals, Marlas, or Acres, or its estimated value)?'
-4. Do not re-ask for facts already locked.
-5. Keep your reply concise (under 2 sentences).
-6. If the user language is Roman Urdu, reply in Roman Urdu. Otherwise reply in English.
-7. DO NOT prefix with 'LOCKED FACTS SO FAR' or dump internal tags in the visible reply.
+RULES:
+1. Be empathetic, polite, and professional.
+2. {lang_rules}
+3. Do not re-ask for facts already locked.
+4. DO NOT prefix with 'LOCKED FACTS SO FAR' or dump internal tags in the visible reply.
 """
         
         groq_messages = [{"role": "system", "content": system_instruction}]
@@ -398,9 +443,9 @@ IMPORTANT RULES:
                     model=settings.PRIMARY_MODEL,
                     messages=groq_messages,
                     temperature=0.3,
-                    max_tokens=250,
+                    max_tokens=200,
                 )
-                assistant_reply = chat_completion.choices[0].message.content or "Thank you for these details."
+                assistant_reply = chat_completion.choices[0].message.content or ""
                 break
             except Exception as e:
                 print(f"Groq conversational intake error (attempt {attempt+1}):", e)
@@ -408,31 +453,26 @@ IMPORTANT RULES:
                     if hasattr(client, 'api_key'):
                         groq_pool.mark_rate_limited(client.api_key)
                     await asyncio.sleep(1)
-                else:
-                    if not has_heirs:
-                        assistant_reply = (
-                            "Could you please clarify who the surviving heirs are (number of sons, daughters, and if his widow or mother is alive)?"
-                            if not is_urdu else
-                            "Barah-e-karam batayein kitne betay, betiyan aur kya marhoom ki bewa ya walida hayat hain?"
-                        )
-                    elif not has_quant_property:
-                        assistant_reply = (
-                            "To calculate the exact shares, what is the total size or measurement of the property (e.g., how many Kanals, Marlas, or Acres, or estimated value)?"
-                            if not is_urdu else
-                            "Hissa nikalne ke liye, barah-e-karam zameen ki paimaish batayein (kitne Kanal, Marla, ya Acre zameen hai ya andazan qeemat kya hai)?"
-                        )
-                    elif not has_location:
-                        assistant_reply = (
-                            "Where is this property located (which city, tehsil, or village)?"
-                            if not is_urdu else
-                            "Yeh jaidad kahan waqia hai (shehr, tehsil ya gaon ka naam batayein)?"
-                        )
-                    else:
-                        assistant_reply = (
-                            "Thank you. Could you describe how you are being excluded or denied your share?"
-                            if not is_urdu else
-                            "Shukriya. Barah-e-karam batayein ke bhaiyon ne kis tarah wirasat se bay-dakhal kiya?"
-                        )
+
+        # Safety Guard: If LLM generated a terse acknowledgment without asking the required question
+        if not assistant_reply or "?" not in assistant_reply:
+            if not has_deceased:
+                q = "Marhoom ka mukammal naam aur tareekh-e-inteqal kya hai?" if is_urdu else "What was the deceased's full name and approximate date of death?"
+            elif not has_heirs:
+                q = "Marhoom ke kul kitne betay, kitni betiyan hain aur kya unki bewa ya walida hayat hain?" if is_urdu else "Who are all the surviving heirs (exact count of sons, daughters, and is the widow or mother alive)?"
+            elif not has_quant_property:
+                q = "Zameen ki kul paimaish kitni hai (maslan kitne Kanal, Marla ya Acre hai)?" if is_urdu else "What is the total size or measurement of the property (e.g. how many Kanals, Marlas, or Acres)?"
+            elif not has_location:
+                q = "Yeh jaidad kahan waqia hai (shehr ya tehsil ka naam batayein)?" if is_urdu else "Where is this property located (which city, tehsil, or village)?"
+            else:
+                q = "Bhaiyon ne kis tarah zameen par qabza kiya ya aap ko hissa dene se inkar kiya?" if is_urdu else "How are the other heirs denying or withholding your lawful share?"
+            
+            cleaned_reply = assistant_reply.strip().rstrip(".")
+            if cleaned_reply and len(cleaned_reply) > 5 and not cleaned_reply.lower().startswith("thank you for these details"):
+                assistant_reply = f"{cleaned_reply}. {q}"
+            else:
+                prefix = "Shukriya. " if is_urdu else "Thank you. "
+                assistant_reply = f"{prefix}{q}"
 
     # Options only for launch when case facts are ready
     options = []
