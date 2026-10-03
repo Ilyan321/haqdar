@@ -54,20 +54,39 @@ def extract_deterministic_facts(text: str, current: Dict[str, Any]) -> Dict[str,
         updated["deceased_name"] = "Ilyan Khan"
 
     # 2. Heirs
-    sons_m = re.search(r'(\d+)\s*(?:son|sons|betay|bete|brothers?)', text_lower)
+    sons_m = re.search(r'(\d+)\s*(?:son|sons|betay|bete|brothers?)\b', text_lower)
     if sons_m:
         updated["sons_count"] = int(sons_m.group(1))
+    elif re.search(r'\b(?:one|1)\s+(?:son|brother)\b', text_lower):
+        updated["sons_count"] = 1
+    elif re.search(r'\b(?:two|2)\s+(?:sons|brothers)\b', text_lower):
+        updated["sons_count"] = 2
+    elif re.search(r'\b(?:three|3)\s+(?:sons|brothers)\b', text_lower):
+        updated["sons_count"] = 3
+    elif re.search(r'\b(?:no|zero|0)\s+(?:sons|brothers)\b', text_lower) or "no son" in text_lower or "no brother" in text_lower:
+        updated["sons_count"] = 0
         
-    daughters_m = re.search(r'(\d+)\s*(?:daughter|daughters|beti|betiyan|sisters?)', text_lower)
+    daughters_m = re.search(r'(\d+)\s*(?:daughter|daughters|beti|betiyan|sisters?)\b', text_lower)
     if daughters_m:
         updated["daughters_count"] = int(daughters_m.group(1))
+    elif re.search(r'\b(?:one|1)\s+(?:daughter|sister)\b', text_lower):
+        updated["daughters_count"] = 1
+    elif re.search(r'\b(?:two|2)\s+(?:daughters|sisters)\b', text_lower):
+        updated["daughters_count"] = 2
+    elif re.search(r'\b(?:three|3)\s+(?:daughters|sisters)\b', text_lower):
+        updated["daughters_count"] = 3
+    elif re.search(r'\b(?:no|zero|0)\s+(?:daughters|sisters)\b', text_lower) or "no daughter" in text_lower or "no sister" in text_lower:
+        updated["daughters_count"] = 0
         
-    widow_m = re.search(r'(\d+)?\s*(?:widow|widows|bewa|bewayein|wife|wives)', text_lower)
+    widow_m = re.search(r'(\d+)?\s*(?:widow|widows|bewa|bewayein|wife|wives)\b', text_lower)
     if widow_m or any(w in text_lower for w in ["widow", "bewa", "wife"]):
         updated["widow_alive"] = True
         updated["wives_count"] = int(widow_m.group(1)) if (widow_m and widow_m.group(1)) else 1
+    elif any(w in text_lower for w in ["no widow", "widow passed away", "mother passed away", "mother died", "mother is dead", "widow died", "walida fot ho chuki"]):
+        updated["widow_alive"] = False
+        updated["wives_count"] = 0
         
-    if any(w in text_lower for w in ["mother", "walida", "maa"]) and not any(w in text_lower for w in ["mother / widow", "mother/widow"]):
+    if any(w in text_lower for w in ["mother", "walida", "maa"]) and not any(w in text_lower for w in ["mother / widow", "mother/widow", "mother passed away", "mother died", "mother is dead", "walida fot"]):
         updated["mother_alive"] = True
 
     # 3. Property size & measurement
@@ -112,14 +131,15 @@ async def extract_facts_with_llm(messages: List[Dict[str, str]], current_facts: 
 Extract case facts from the conversation accurately. Return a JSON object with EXACTLY these keys. If a fact is not mentioned or unknown, set it to null.
 
 Keys:
-- "deceased_name": (string) Full name of the deceased person (e.g. 'Ilyan Khan').
-- "date_of_death": (string) Date or approximate time of death (e.g. '31-09-2026').
-- "sons_count": (integer) Number of surviving sons (including the claimant if claimant is a son).
-- "daughters_count": (integer) Number of surviving daughters (including the claimant if claimant is a daughter).
-- "widow_alive": (boolean) Is the widow / wife of the deceased alive? (e.g. true if user mentions 1 widow, mother of children, or wife).
-- "wives_count": (integer) Number of surviving wives/widows (typically 1).
-- "mother_alive": (boolean) Is the mother of the deceased alive?
-- "father_alive": (boolean) Is the father of the deceased alive?
+- "deceased_name": (string) Full name of the deceased person (e.g. 'Chaudhry Mohammad Aslam').
+- "date_of_death": (string) Date or approximate time of death (e.g. '14 Jan 2023').
+- "sons_count": (integer or null) Explicit number of surviving sons/brothers. If claimant only says 'my brothers' without a specific number, set to null.
+- "daughters_count": (integer or null) Explicit number of surviving daughters/sisters (including claimant if claimant is a daughter).
+- "widow_alive": (boolean or null) Is the widow / wife of the deceased alive? (e.g. true if user mentions widow/wife/mother alive, false if mentioned deceased).
+- "wives_count": (integer or null) Number of surviving wives/widows (typically 1).
+- "mother_alive": (boolean or null) Is the mother of the deceased alive?
+- "father_alive": (boolean or null) Is the father of the deceased alive?
+- "heirs_confirmed": (boolean) Set to true ONLY if the claimant has provided an explicit, verified breakdown of surviving heirs (e.g. exact count of sons and daughters, and status of widow/mother). Set to false if heir information is incomplete, partial, or vague (e.g. just said 'my brothers took the land' without giving exact numbers, or hasn't clarified whether a widow/mother survived).
 - "property_type": (string) Type of property (e.g. 'agricultural farmlands', 'residential house', 'commercial shop', 'cash / bank savings').
 - "property_area": (string) Specific size/measurement or value of the property (e.g. '120 Kanals', '17 Acres', '10 Marlas', 'Rs. 25,000,000'). If only generic description given without size (e.g. 'farmlands'), record 'farmlands (size unstated)'.
 - "has_quantitative_measurement": (boolean) TRUE if user provided explicit numerical size or units (e.g. Kanals, Marlas, Acres, Murabba, Sq Yards, PKR/Rs amount). FALSE if user only gave a vague label like 'farmlands', 'house', 'zameen' without quantity.
@@ -241,13 +261,26 @@ async def send_message(req: CaseMessageRequest):
 
     # 2. Check completeness with strict criteria (ALL essential inheritance pillars)
     has_deceased = bool(updated_facts.get("deceased_name"))
-    has_heirs = ("sons_count" in updated_facts or "daughters_count" in updated_facts or "widow_alive" in updated_facts or "mother_alive" in updated_facts)
+    
+    # Accurate Faraizi calculation requires verified heir counts:
+    # 1. Explicit counts for sons and daughters AND status of widow/mother, OR
+    # 2. Heirs explicitly confirmed via verified breakdown
+    has_explicit_counts = (
+        updated_facts.get("sons_count") is not None and
+        updated_facts.get("daughters_count") is not None and
+        (updated_facts.get("widow_alive") is not None or "wives_count" in updated_facts or updated_facts.get("mother_alive") is not None)
+    )
+    has_heirs = bool(
+        has_explicit_counts or
+        (updated_facts.get("heirs_confirmed") is True and (updated_facts.get("sons_count") is not None or updated_facts.get("daughters_count") is not None))
+    )
+    
     has_quant_property = is_property_quantified(updated_facts)
     has_location = bool(updated_facts.get("location"))
     has_dispute = bool(updated_facts.get("dispute_type"))
     
-    # Ready only when all key facts including exact property measurement/value are established
-    ready_to_launch = (
+    # Ready only when all key facts including exact property measurement/value and verified heir roster are established
+    ready_to_launch = bool(
         has_deceased and
         has_heirs and
         has_quant_property and
@@ -289,7 +322,7 @@ async def send_message(req: CaseMessageRequest):
     if not has_deceased:
         missing_items.append("Deceased's full name and approximate date of death")
     if not has_heirs:
-        missing_items.append("Surviving heirs breakdown (number of sons, daughters, and whether widow/mother/father are alive)")
+        missing_items.append("Complete roster of surviving heirs: exact count of sons (brothers), daughters (sisters), and whether the deceased's widow (mother) or parents are alive")
     if not has_quant_property:
         if updated_facts.get("property_area") and not has_quant_property:
             missing_items.append("Exact total size or measurement of the property to be partitioned (e.g. how many Kanals, Marlas, or Acres, or estimated PKR valuation)")

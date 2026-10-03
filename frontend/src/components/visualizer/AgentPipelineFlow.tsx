@@ -10,20 +10,21 @@ import {
   Position,
   ReactFlowProvider,
   useReactFlow,
+  MarkerType,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useCaseStore } from "@/store/caseStore";
 import { Focus, Maximize2 } from "lucide-react";
 
 const AGENT_CONFIGS = [
-  { id: "orchestrator", label: "🎯 Case Orchestrator", role: "Supervisor & Router", x: 250, y: 20 },
-  { id: "intake_agent", label: "📋 Intake Agent", role: "Guided Fact Discovery", x: 50, y: 130 },
-  { id: "family_tree_agent", label: "👨‍👩‍👧‍👦 Family Tree", role: "Genealogy & Heirs", x: 250, y: 130 },
-  { id: "document_analyzer", label: "📄 Document Analyzer", role: "Mutation & Deed Audit", x: 450, y: 130 },
-  { id: "sharia_calculator", label: "⚖️ Sharia Calculator", role: "Deterministic Math (Quran 4:11)", x: 250, y: 250 },
-  { id: "fraud_detection_agent", label: "🔍 Fraud Detection", role: "Adversarial PPC 498A Audit", x: 120, y: 370 },
-  { id: "legal_strategy_agent", label: "📜 Legal Strategy", role: "60-Day Ombudsperson Plan", x: 380, y: 370 },
-  { id: "qa_reviewer", label: "🛡️ QA Reviewer", role: "Judicial Reflection Gate", x: 250, y: 490 },
+  { id: "intake_agent", label: "📋 Intake Agent", role: "Guided Fact Discovery", x: 250, y: 15 },
+  { id: "orchestrator", label: "🎯 Case Orchestrator", role: "Supervisor & Router", x: 250, y: 125 },
+  { id: "family_tree_agent", label: "👨‍👩‍👧‍👦 Family Tree", role: "Genealogy & Heirs", x: 60, y: 235 },
+  { id: "document_analyzer", label: "📄 Document Analyzer", role: "Mutation & Deed Audit", x: 440, y: 235 },
+  { id: "sharia_calculator", label: "⚖️ Sharia Calculator", role: "Deterministic Math (Quran 4:11)", x: 250, y: 345 },
+  { id: "fraud_detection_agent", label: "🔍 Fraud Detection", role: "Adversarial PPC 498A Audit", x: 60, y: 455 },
+  { id: "legal_strategy_agent", label: "📜 Legal Strategy", role: "60-Day Ombudsperson Plan", x: 440, y: 455 },
+  { id: "qa_reviewer", label: "🛡️ QA Reviewer", role: "Judicial Reflection Gate", x: 250, y: 565 },
 ];
 
 function PipelineFlowInner() {
@@ -81,15 +82,87 @@ function PipelineFlowInner() {
   }, [agentStatuses]);
 
   const edges: Edge[] = useMemo(() => [
-    { id: "e-orch-intake", source: "orchestrator", target: "intake_agent", animated: true },
-    { id: "e-orch-tree", source: "orchestrator", target: "family_tree_agent", animated: true },
-    { id: "e-orch-doc", source: "orchestrator", target: "document_analyzer", animated: true },
-    { id: "e-tree-calc", source: "family_tree_agent", target: "sharia_calculator", animated: true },
-    { id: "e-doc-calc", source: "document_analyzer", target: "sharia_calculator", animated: true },
-    { id: "e-calc-fraud", source: "sharia_calculator", target: "fraud_detection_agent", animated: true },
-    { id: "e-calc-legal", source: "sharia_calculator", target: "legal_strategy_agent", animated: true },
-    { id: "e-fraud-qa", source: "fraud_detection_agent", target: "qa_reviewer", animated: true },
-    { id: "e-legal-qa", source: "legal_strategy_agent", target: "qa_reviewer", animated: true },
+    {
+      id: "e-intake-orch",
+      source: "intake_agent",
+      target: "orchestrator",
+      animated: true,
+      type: "smoothstep",
+      markerEnd: { type: MarkerType.ArrowClosed, color: "#64748b" },
+      style: { stroke: "#64748b", strokeWidth: 1.5 },
+    },
+    {
+      id: "e-orch-tree",
+      source: "orchestrator",
+      target: "family_tree_agent",
+      animated: true,
+      type: "smoothstep",
+      markerEnd: { type: MarkerType.ArrowClosed, color: "#64748b" },
+      style: { stroke: "#64748b", strokeWidth: 1.5 },
+    },
+    {
+      id: "e-orch-doc",
+      source: "orchestrator",
+      target: "document_analyzer",
+      animated: true,
+      type: "smoothstep",
+      markerEnd: { type: MarkerType.ArrowClosed, color: "#64748b" },
+      style: { stroke: "#64748b", strokeWidth: 1.5 },
+    },
+    {
+      id: "e-tree-calc",
+      source: "family_tree_agent",
+      target: "sharia_calculator",
+      animated: true,
+      type: "smoothstep",
+      markerEnd: { type: MarkerType.ArrowClosed, color: "#64748b" },
+      style: { stroke: "#64748b", strokeWidth: 1.5 },
+    },
+    {
+      id: "e-doc-calc",
+      source: "document_analyzer",
+      target: "sharia_calculator",
+      animated: true,
+      type: "smoothstep",
+      markerEnd: { type: MarkerType.ArrowClosed, color: "#64748b" },
+      style: { stroke: "#64748b", strokeWidth: 1.5 },
+    },
+    {
+      id: "e-calc-fraud",
+      source: "sharia_calculator",
+      target: "fraud_detection_agent",
+      animated: true,
+      type: "smoothstep",
+      markerEnd: { type: MarkerType.ArrowClosed, color: "#64748b" },
+      style: { stroke: "#64748b", strokeWidth: 1.5 },
+    },
+    {
+      id: "e-calc-legal",
+      source: "sharia_calculator",
+      target: "legal_strategy_agent",
+      animated: true,
+      type: "smoothstep",
+      markerEnd: { type: MarkerType.ArrowClosed, color: "#64748b" },
+      style: { stroke: "#64748b", strokeWidth: 1.5 },
+    },
+    {
+      id: "e-fraud-qa",
+      source: "fraud_detection_agent",
+      target: "qa_reviewer",
+      animated: true,
+      type: "smoothstep",
+      markerEnd: { type: MarkerType.ArrowClosed, color: "#64748b" },
+      style: { stroke: "#64748b", strokeWidth: 1.5 },
+    },
+    {
+      id: "e-legal-qa",
+      source: "legal_strategy_agent",
+      target: "qa_reviewer",
+      animated: true,
+      type: "smoothstep",
+      markerEnd: { type: MarkerType.ArrowClosed, color: "#64748b" },
+      style: { stroke: "#64748b", strokeWidth: 1.5 },
+    },
   ], []);
 
   return (
