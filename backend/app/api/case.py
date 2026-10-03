@@ -47,11 +47,11 @@ def extract_deterministic_facts(text: str, current: Dict[str, Any]) -> Dict[str,
     text_lower = text.lower()
     
     # 1. Deceased name
-    deceased_m = re.search(r'(?:father|walid|marhoom|deceased|uncle|brother)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)', text)
+    deceased_m = re.search(r'(?:father|walid|marhoom|deceased|uncle|brother|name is|name was)\s+(?:named\s+|called\s+)?([A-Za-z]+(?:\s+[A-Za-z]+)*)', text)
     if deceased_m and not updated.get("deceased_name"):
-        updated["deceased_name"] = deceased_m.group(1).strip()
-    elif "ilyan khan" in text_lower and not updated.get("deceased_name"):
-        updated["deceased_name"] = "Ilyan Khan"
+        val = deceased_m.group(1).strip().title()
+        if val.lower() not in ["died", "passed", "left", "leaving", "in", "the"]:
+            updated["deceased_name"] = val
 
     # 2. Heirs
     sons_m = re.search(r'(\d+)\s*(?:son|sons|betay|bete|brothers?)\b', text_lower)
@@ -101,11 +101,27 @@ def extract_deterministic_facts(text: str, current: Dict[str, Any]) -> Dict[str,
                 break
 
     # 4. Location
-    for city in ["lahore", "karachi", "islamabad", "rawalpindi", "gujranwala", "faisalabad", "multan", "peshawar", "quetta", "sialkot", "hyderabad", "sukkur", "larkana", "kamber", "warah"]:
-        if city in text_lower:
-            loc_idx = text_lower.find(city)
-            snippet = text[max(0, loc_idx-10):min(len(text), loc_idx+35)].strip(" ,.")
-            updated["location"] = snippet if len(snippet) > len(city) else city.title()
+    cities = {
+        "lahore": "Lahore, Punjab",
+        "kasur": "Kasur, Punjab",
+        "karachi": "Karachi, Sindh",
+        "islamabad": "Islamabad Capital Territory",
+        "rawalpindi": "Rawalpindi, Punjab",
+        "gujranwala": "Gujranwala, Punjab",
+        "faisalabad": "Faisalabad, Punjab",
+        "multan": "Multan, Punjab",
+        "peshawar": "Peshawar, Khyber Pakhtunkhwa",
+        "quetta": "Quetta, Balochistan",
+        "sialkot": "Sialkot, Punjab",
+        "hyderabad": "Hyderabad, Sindh",
+        "sukkur": "Sukkur, Sindh",
+        "larkana": "Larkana, Sindh",
+        "kamber": "Kamber-Shahdadkot, Sindh",
+        "warah": "Warah, Sindh",
+    }
+    for city_key, city_formatted in cities.items():
+        if city_key in text_lower:
+            updated["location"] = city_formatted
             break
             
     # 5. Dispute
