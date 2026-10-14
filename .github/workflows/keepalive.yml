@@ -13,7 +13,7 @@ jobs:
       - name: Ping Backend Render API
         run: |
           echo "Pinging HaqDar Backend API..."
-          curl -f -s -m 30 "https://haqdar-backend-dvwu.onrender.com/health" || echo "Backend ping dispatched"
+          curl -f -s -m 30 "https://haqdar-backend-i9j3.onrender.com/health" || echo "Backend ping dispatched"
 
       - name: Ping Frontend Vercel Web
         run: |

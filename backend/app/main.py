@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 async def keep_alive_background_worker():
     """Periodically ping external health endpoint to prevent free tier spin-down."""
     await asyncio.sleep(60)  # Wait 1 minute after server boot before starting loop
-    base_url = os.environ.get("RENDER_EXTERNAL_URL", "https://haqdar-backend-dvwu.onrender.com")
+    base_url = os.environ.get("RENDER_EXTERNAL_URL", "https://haqdar-backend-i9j3.onrender.com")
     target_url = f"{base_url.rstrip('/')}/health"
     
     async with httpx.AsyncClient(timeout=15.0) as client:

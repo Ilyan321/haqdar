@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { useCaseStore } from "@/store/caseStore";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://haqdar-backend-i9j3.onrender.com/api";
 
 export function useAgentStream(sessionId: string | null) {
   const eventSourceRef = useRef<EventSource | null>(null);
